@@ -1,30 +1,80 @@
 'use strict';
-const KEY='rrgfit.v1';
+const SB_URL='https://vyjaohlwpzebeamdscyr.supabase.co';
+const SB_KEY='sb_publishable_v7TX17F0Rf0gTc6XGrFGRQ_K2W_-xKY';
+const SITE='https://rrgfit-coach.github.io/rrgfit-app/';
+const POLICY_V='2026-11-25';
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uid=()=>Math.random().toString(36).slice(2,10);
+const uid=()=>crypto.randomUUID();
 const today=()=>new Date().toISOString().slice(0,10);
 const SERV=['Boxeo','K1','Muay Thai','Funcional','Fuerza / GAP','Movilidad','Online'];
-const EXS={Boxeo:['Sombra 3x3 min','Jab-cruzado en saco','Trabajo de manoplas','Defensa y esquivas','Combinaciones al saco'],'Muay Thai':['Patada baja','Rodillazos en saco','Clinch','Patada frontal (teep)','Manoplas thai'],K1:['Combinaciones K1','Patadas altas','Guardia y desplazamientos','Saco 5x3 min'],Funcional:['Burpees','Kettlebell swing','Plancha','Zancadas','Remo con banda','Saltos al cajón'],Fuerza:['Sentadilla','Peso muerto rumano','Hip thrust','Press de banca','Dominadas asistidas','Press militar','Puente de glúteo'],Movilidad:['Movilidad de cadera','Estiramiento isquios','Movilidad de hombros','Gato-camello']};
-function seed(){const mk=(name,cat,items)=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))});
-return{settings:{wa:'34636497426',name:'Raquel'},clients:[],sessions:[],routines:[
-mk('Boxeo iniciación','Boxeo',['Sombra 3x3 min','Jab-cruzado en saco','Defensa y esquivas']),
-mk('Muay Thai base','Muay Thai',['Patada baja','Rodillazos en saco','Patada frontal (teep)']),
-mk('Funcional cuerpo completo','Funcional',['Burpees','Kettlebell swing','Zancadas','Plancha']),
-mk('Fuerza GAP','Fuerza / GAP',['Hip thrust','Sentadilla','Peso muerto rumano','Puente de glúteo']),
-mk('Movilidad suave','Movilidad',['Movilidad de cadera','Movilidad de hombros','Gato-camello'])]}}
-let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}if(!S||!S.clients)S=seed();
-const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
-const toast=m=>{const t=$('#toast');t.textContent=m;t.className='on';setTimeout(()=>t.className='',1800)};
+const EXS={Boxeo:['Sombra 3x3 min','Jab-cruzado en saco','Trabajo de manoplas','Defensa y esquivas','Combinaciones al saco'],'Muay Thai':['Patada baja','Rodillazos en saco','Clinch','Patada frontal (teep)','Manoplas thai'],K1:['Combinaciones K1','Patadas altas','Guardia y desplazamientos','Saco 5x3 min'],Funcional:['Burpees','Kettlebell swing','Plancha','Zancadas','Remo con banda','Saltos al cajón'],Fuerza:['Sentadilla','Peso muerto rumano','Hip thrust','Press de banca','Dominadas asistidas','Press militar','Puente de glúteo'],Movilidad:['Movilidad de cadera','Movilidad de hombros','Gato-camello']};
+const SEED=[['Boxeo iniciación','Boxeo',['Sombra 3x3 min','Jab-cruzado en saco','Defensa y esquivas']],['Muay Thai base','Muay Thai',['Patada baja','Rodillazos en saco','Patada frontal (teep)']],['Funcional cuerpo completo','Funcional',['Burpees','Kettlebell swing','Zancadas','Plancha']],['Fuerza GAP','Fuerza / GAP',['Hip thrust','Sentadilla','Peso muerto rumano','Puente de glúteo']],['Movilidad suave','Movilidad',['Movilidad de cadera','Movilidad de hombros','Gato-camello']]];
+let S={settings:{},clients:[],sessions:[],routines:[]};
+let ME=null,ROLE=null,MYC=null,MYS=[],AUTHVIEW='login',RECOVERY=false;
+// ---- sincronización con la nube (entrenadora)
+let snap={clients:{},priv:{},routines:{},sessions:{},settings:''},dirty=false,saving=false,timer=null;
+const j=o=>JSON.stringify(o);
+const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
+const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[]}});
+const rowRoutine=r=>({id:r.id,name:r.name,cat:r.cat||null,items:r.items||[]});
+const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done});
+function setStatus(t,c){const e=$('#sub');if(e&&ROLE==='trainer'){e.textContent=t;e.style.color=c||''}}
+function save(){dirty=true;setStatus('Guardando…');clearTimeout(timer);timer=setTimeout(flush,500)}
+async function flush(){if(saving||ROLE!=='trainer'){return}saving=true;dirty=false;
+try{
+ const sets=j(S.settings);
+ if(sets!==snap.settings){const{error}=await sb.from('trainers').update({settings:S.settings}).eq('user_id',ME.id);if(error)throw error;snap.settings=sets}
+ const plan=[['clients',S.clients.map(rowClient),'id'],['client_private',S.clients.map(rowPriv),'client_id','priv'],['routines',S.routines.map(rowRoutine),'id'],['sessions',S.sessions.map(rowSess),'id']];
+ for(const[tbl,rows,key,sk]of plan){const k=sk||tbl;const old=snap[k];const cur={};rows.forEach(r=>cur[r[key]]=j(r));
+  const up=rows.filter(r=>old[r[key]]!==cur[r[key]]);
+  if(up.length){const{error}=await sb.from(tbl).upsert(up,{onConflict:key});if(error)throw error;up.forEach(r=>old[r[key]]=cur[r[key]])}
+ }
+ for(const[tbl,k,key]of[['sessions','sessions','id'],['routines','routines','id'],['clients','clients','id']]){const ids=new Set((tbl==='clients'?S.clients:tbl==='routines'?S.routines:S.sessions).map(x=>x.id));
+  const gone=Object.keys(snap[k]).filter(id=>!ids.has(id));
+  if(gone.length){const{error}=await sb.from(tbl).delete().in('id',gone);if(error)throw error;gone.forEach(id=>{delete snap[k][id];if(k==='clients')delete snap.priv[id]})}}
+ setStatus('Guardado ✓');
+}catch(e){console.error(e);dirty=true;setStatus('Sin conexión, reintentando…','#e8731a');setTimeout(()=>{if(dirty)flush()},5000)}
+saving=false;if(dirty&&!timer)flush()}
+async function loadTrainer(){
+ const[a,b,c,d,t]=await Promise.all([sb.from('clients').select('*').order('created_at'),sb.from('client_private').select('*'),sb.from('routines').select('*'),sb.from('sessions').select('*'),sb.from('trainers').select('settings').eq('user_id',ME.id).single()]);
+ for(const r of[a,b,c,d,t])if(r.error)throw r.error;
+ const pv={};b.data.forEach(p=>pv[p.client_id]=p.data||{});
+ S.settings=t.data.settings||{};
+ S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
+ S.routines=c.data.map(r=>({id:r.id,name:r.name,cat:r.cat,items:r.items||[]}));
+ S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:r.service,done:r.done}));
+ snap={clients:{},priv:{},routines:{},sessions:{},settings:j(S.settings)};
+ S.clients.forEach(x=>{snap.clients[x.id]=j(rowClient(x));snap.priv[x.id]=j(rowPriv(x))});S.routines.forEach(x=>snap.routines[x.id]=j(rowRoutine(x)));S.sessions.forEach(x=>snap.sessions[x.id]=j(rowSess(x)));
+ if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
+}
+async function loadClient(){
+ const[a,b]=await Promise.all([sb.from('clients').select('*').eq('user_id',ME.id).maybeSingle(),sb.from('sessions').select('*')]);
+ if(a.error)throw a.error;MYC=a.data;MYS=(b.data||[]);
+}
+async function boot(){
+ const{data}=await sb.auth.getSession();
+ if(!data.session){ME=null;ROLE=null;return render()}
+ ME=data.session.user;
+ try{const t=await sb.from('trainers').select('user_id').eq('user_id',ME.id).maybeSingle();
+  if(t.data){ROLE='trainer';await loadTrainer()}else{ROLE='client';await loadClient()}
+ }catch(e){console.error(e);toast('No se pudieron cargar los datos')}
+ render()}
+sb.auth.onAuthStateChange((ev,s)=>{if(ev==='PASSWORD_RECOVERY'){RECOVERY=true;render()}});
+async function doLogin(){const email=$('#l_e').value.trim(),password=$('#l_p').value;if(!email||!password)return toast('Pon tu email y contraseña');
+ const{error}=await sb.auth.signInWithPassword({email,password});if(error)return toast('Email o contraseña incorrectos');boot()}
+async function doForgot(){const email=$('#l_e').value.trim();if(!email)return toast('Escribe tu email arriba');
+ const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:SITE});toast(error?'No se pudo enviar el email':'Te hemos enviado un email para cambiar la contraseña')}
+async function doNewPass(){const p=$('#np').value;if(p.length<8)return toast('Mínimo 8 caracteres');const{error}=await sb.auth.updateUser({password:p});if(error)return toast('No se pudo cambiar');RECOVERY=false;history.replaceState(null,'',location.pathname);toast('Contraseña cambiada');boot()}
+async function logout(){await sb.auth.signOut();ME=null;ROLE=null;MYC=null;S={settings:{},clients:[],sessions:[],routines:[]};render()}
+const toast=m=>{const t=$('#toast');t.textContent=m;t.className='on';setTimeout(()=>t.className='',2200)};
 const cl=id=>S.clients.find(c=>c.id===id);
 const fdate=d=>d?new Date(d).toLocaleString('es-ES',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
 const daysAgo=d=>d?Math.floor((Date.now()-new Date(d))/864e5):999;
-const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-const unb64=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))));
 const go=h=>{location.hash=h};
 const nav=[['','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/></svg>','Inicio'],['clientes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6z"/><circle cx="17" cy="9" r="2.5"/></svg>','Clientes'],['rutinas','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 9h3v6H2zM19 9h3v6h-3zM5 7h3v10H5zM16 7h3v10h-3zM8 11h8v2H8z"/></svg>','Rutinas'],['agenda','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 5h16v16H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 9h16v2H4zM8 2h2v5H8zM14 2h2v5h-2z"/></svg>','Agenda'],['ajustes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4z"/></svg>','Ajustes']];
 let filt='todos',q='';
-
 function bonoBar(c){if(!c.bono||!c.bono.total)return'';const left=c.bono.total-c.bono.used;return`<div class="mut">Bono: quedan ${left} de ${c.bono.total}</div><div class="bono"><i style="width:${Math.max(0,left)/c.bono.total*100}%"></i></div>`}
 function chart(pts,key,unit){pts=pts.filter(p=>p[key]);if(pts.length<2)return`<div class="mut">Añade al menos 2 registros para ver la gráfica.</div>`;
 const v=pts.map(p=>+p[key]),mn=Math.min(...v),mx=Math.max(...v),r=(mx-mn)||1;
@@ -72,19 +122,13 @@ ${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div cl
 <div class="card"><label>Asignar rutina</label><select id="as">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><button class="btn sm" onclick="assign()">Asignar</button></div>
 <h3>Notas de sesión</h3><div class="card"><textarea id="n_t" rows="2" placeholder="Cómo fue la sesión…"></textarea><button class="btn sm" onclick="addN()">Guardar nota</button>
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
-<h3>Para el cliente</h3><div class="card"><div class="mut">Enlace con sus rutinas, próxima sesión, bono y progreso (solo lectura, sin datos médicos).</div><br>
-<button class="btn" onclick="share('${c.id}')">Copiar enlace del cliente</button> ${c.phone?`<a class="btn wa" onclick="contacted('${c.id}')" href="https://wa.me/${waNum(c.phone)}" target="_blank">WhatsApp</a>`:''}
-${nxt?`<div class="mut" style="margin-top:8px">Próxima sesión: ${fdate(nxt.dt)}</div>`:''}</div>`}`}
+${accesoCard(c)}`}`}
 function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
 function delC(id){if(!confirm('¿Borrar este cliente y sus datos?'))return;S.clients=S.clients.filter(c=>c.id!==id);S.sessions=S.sessions.filter(s=>s.clientId!==id);save();go('#/clientes')}
 function addM(){const c=window._c;const w=$('#m_w').value,k=$('#m_c').value;if(!w&&!k)return;c.measures.push({d:today(),w:w?+w:null,c:k?+k:null});save();render()}
 function addN(){const t=$('#n_t').value.trim();if(!t)return;const c=window._c;c.logs=c.logs||[];c.logs.unshift({d:today(),t});c.lastContact=today();save();render()}
 function assign(){const r=S.routines.find(x=>x.id===$('#as').value);if(!r)return;window._c.routines.push(JSON.parse(JSON.stringify({name:r.name,items:r.items})));save();toast('Rutina asignada');render()}
 function unassign(i){window._c.routines.splice(i,1);save();render()}
-function clientData(c){const nx=S.sessions.filter(s=>s.clientId===c.id&&!s.done&&s.dt>=new Date().toISOString().slice(0,16)).sort((a,b)=>a.dt.localeCompare(b.dt))[0];
-return{n:c.name,wa:S.settings.wa,t:S.settings.name,r:c.routines,x:nx?nx.dt+'|'+nx.service:'',b:c.bono&&c.bono.total?[c.bono.total,c.bono.used]:null,p:c.measures.filter(m=>m.w).map(m=>({d:m.d,w:m.w}))}}
-function share(id){const u=location.origin+location.pathname+'#/c/'+b64(clientData(cl(id)));
-if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>toast('Enlace copiado'),()=>prompt('Copia el enlace',u));else prompt('Copia el enlace',u)}
 
 function vRutinas(){return`<h2>Rutinas</h2>${S.routines.map(r=>`<div class="card click" onclick="go('#/rutina/${r.id}')"><div class="row"><b>${esc(r.name)}</b><span class="tag">${esc(r.cat||'')}</span></div><div class="mut">${r.items.length} ejercicios</div></div>`).join('')||'<div class="empty">Sin rutinas</div>'}<button class="btn fab" onclick="go('#/rutina/nueva')">+</button>`}
 function vRutina(id){const nw=id==='nueva';const r=nw?{id:uid(),name:'',cat:'Funcional',items:[]}:S.routines.find(x=>x.id===id);if(!r)return'<div class="empty">No existe</div>';window._r=JSON.parse(JSON.stringify(r));window._rn=nw;return rutinaForm()}
@@ -107,28 +151,65 @@ return`<h2>Agenda</h2><div class="card"><label>Cliente</label><select id="a_c">$
 <h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}</div></div><div><button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
 function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false});save();toast('Sesión añadida');render()}
 function delS(id){S.sessions=S.sessions.filter(s=>s.id!==id);save();render()}
-
+function accesoCard(c){
+ if(c.user_id)return`<h3>Acceso a la app</h3><div class="card"><div>✅ Tiene acceso con <b>${esc(c.email||'su email')}</b></div><div class="mut">${c.consent_at?'Ha aceptado la política de privacidad el '+new Date(c.consent_at).toLocaleDateString('es-ES'):'Aún no ha aceptado la política de privacidad (la verá al entrar).'}</div><div class="mut">Si olvida la contraseña, puede pedir una nueva con "¿Olvidaste tu contraseña?" en la pantalla de entrada.</div><br>
+${c.phone?`<a class="btn wa" onclick="contacted('${c.id}')" href="https://wa.me/${waNum(c.phone)}" target="_blank">WhatsApp</a> `:''}<button class="btn del" onclick="unlinkAccess('${c.id}')">Quitar acceso</button></div>`;
+ return`<h3>Acceso a la app</h3><div class="card"><div class="mut">Crea su usuario y contraseña. Tú se los pasas al cliente; verá sus rutinas, sesiones y bono al momento. Tus notas y lesiones no las ve.</div><br>
+<label>Email del cliente</label><input id="ac_e" type="email" inputmode="email" value="${esc(c.email||'')}"><label>Contraseña (mínimo 8 caracteres)</label><input id="ac_p" type="text" autocomplete="off">
+<button class="btn" onclick="createAccess('${c.id}')">Crear acceso</button> ${c.phone?`<a class="btn wa" href="https://wa.me/${waNum(c.phone)}" target="_blank">WhatsApp</a>`:''}</div>`}
+async function createAccess(id){const c=cl(id);const email=$('#ac_e').value.trim().toLowerCase(),password=$('#ac_p').value;
+ if(!/^\S+@\S+\.\S+$/.test(email))return toast('Email no válido');if(password.length<8)return toast('La contraseña necesita 8 caracteres o más');
+ const sb2=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ const{data,error}=await sb2.auth.signUp({email,password});
+ if(error)return toast('No se pudo crear: '+error.message);
+ if(!data.user||(data.user.identities&&data.user.identities.length===0))return toast('Ese email ya tiene una cuenta');
+ c.user_id=data.user.id;c.email=email;save();toast('Acceso creado');render()}
+function unlinkAccess(id){if(!confirm('El cliente dejará de ver sus datos. ¿Quitar acceso?'))return;const c=cl(id);c.user_id=null;save();render()}
 function vAjustes(){return`<h2>Ajustes</h2><div class="card"><label>Tu nombre</label><input id="s_n" value="${esc(S.settings.name||'')}"><label>Tu WhatsApp (con prefijo, ej. 34636497426)</label><input id="s_w" inputmode="tel" value="${esc(S.settings.wa||'')}"><button class="btn" onclick="saveSet()">Guardar</button></div>
-<h3>Copia de seguridad</h3><div class="card"><div class="mut">Los datos se guardan en este móvil. Haz copia de vez en cuando, sobre todo antes de cambiar de móvil.</div><br><button class="btn" onclick="exportD()">Descargar copia</button><br><br><label>Restaurar copia</label><input type="file" accept=".json" onchange="importD(this)"></div>
+<h3>Tus datos</h3><div class="card"><div class="mut">Se guardan en la nube (servidores en la UE) y los ves desde cualquier móvil entrando con tu email. Descarga una copia cuando quieras.</div><br><button class="btn" onclick="exportD()">Descargar copia</button></div>
+<h3>Cuenta</h3><div class="card"><div class="mut">${esc(ME&&ME.email)}</div><br><button class="btn ghost" onclick="logout()">Cerrar sesión</button> <a class="btn ghost" href="#/privacidad">Política de privacidad</a></div>
 <h3>Instalar</h3><div class="card mut">iPhone: Safari → Compartir → Añadir a pantalla de inicio. Android: menú ⋮ → Instalar app.</div>`}
-function saveSet(){S.settings.name=$('#s_n').value;S.settings.wa=$('#s_w').value.replace(/[^\d]/g,'');save();toast('Guardado')}
+function saveSet(){S.settings.name=$('#s_n').value;S.settings.wa=$('#s_w').value.replace(/[^\d]/g,'');S.clients.forEach(c=>c._t=1);snap.clients={};save();toast('Guardado')}
 function exportD(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='rrgfit-copia-'+today()+'.json';a.click()}
-function importD(i){const f=i.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!d.clients)throw 0;S=d;save();toast('Restaurado');render()}catch(e){toast('Archivo no válido')}})}
 
-function vCliente(data){let d;try{d=unb64(data)}catch(e){return'<div class="empty">Enlace no válido</div>'}
-const nx=d.x?d.x.split('|'):null;
-return`<h2>Hola, ${esc(d.n)} 👊</h2>
-<div class="card"><div class="mut">Próxima sesión</div>${nx?`<div class="big" style="font-size:22px">${fdate(nx[0])}</div><div class="mut">${esc(nx[1])}</div>`:'<div>Aún sin fecha. Escríbeme y la fijamos.</div>'}</div>
-${d.b?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${d.b[0]-d.b[1]} de ${d.b[0]} sesiones</b><div class="bono"><i style="width:${(d.b[0]-d.b[1])/d.b[0]*100}%"></i></div></div>`:''}
-<h3>Tus rutinas</h3>${(d.r||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${esc(e.n)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
-<h3>Tu progreso</h3><div class="card">${chart(d.p||[],'w','kg')}</div>
-${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+d.n)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}`}
+const POLICY=`<h2>Política de privacidad</h2><div class="card legal">
+<p class="mut">Versión ${POLICY_V}</p>
+<h3>Quién es el responsable</h3><p>Raquel Rodríguez Gómez (RRG FIT), NIF 50250597J. Dirección: Antonio Celedonio Lorente nº3. Email de contacto: rrgfit.coach@gmail.com.</p>
+<h3>Qué datos tratamos</h3><p>Nombre, teléfono y email; objetivo de entrenamiento; datos de salud y condición física que tú o tu entrenadora anotáis (lesiones, peso, medidas); rutinas asignadas, sesiones, bonos y notas de seguimiento.</p>
+<h3>Para qué</h3><p>Prestar el servicio de entrenamiento personal: preparar y asignar rutinas, gestionar sesiones y bonos y que puedas ver tu plan en la app.</p>
+<h3>Base legal</h3><p>La ejecución del servicio que contratas (art. 6.1.b RGPD) y, para los datos de salud, tu consentimiento explícito (art. 9.2.a RGPD), que das al aceptar esta política y puedes retirar cuando quieras.</p>
+<h3>Quién ve tus datos</h3><p>Solo tu entrenadora. Tú ves únicamente tus propios datos en la app. Las lesiones y notas médicas las ve solo ella, no se muestran en tu pantalla. Para guardar los datos usamos Supabase como proveedor (encargado del tratamiento), con servidores en París (UE). La web se aloja en GitHub Pages, que no recibe tus datos personales.</p>
+<h3>Cuánto tiempo</h3><p>Mientras dure la relación con tu entrenadora. Después, los datos se borran, salvo lo que la ley obligue a conservar.</p>
+<h3>Tus derechos</h3><p>Puedes pedir acceso, rectificación, supresión, limitación, oposición y portabilidad de tus datos, y retirar tu consentimiento, escribiendo a rrgfit.coach@gmail.com. En la app puedes descargar tus datos. Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
+</div>`;
+function vPolicy(){return`<button class="btn ghost sm" onclick="history.back()">← Volver</button>${POLICY}`}
 
-function render(){const h=location.hash.replace(/^#\/?/,'');const [p,a]=h.split('/');const cli=p==='c';
-document.body.classList.toggle('client',cli);$('#nav').style.display=cli?'none':'flex';$('#sub').textContent=cli?'Tu entrenamiento':'Entrenamiento personal';
+function vLogin(){if(RECOVERY)return`<div class="hero"><img src="logo.png" alt="RRG"></div><h2>Nueva contraseña</h2><div class="card"><label>Escribe tu nueva contraseña</label><input id="np" type="password" autocomplete="new-password"><button class="btn" onclick="doNewPass()">Guardar</button></div>`;
+return`<div class="hero"><img src="logo.png" alt="RRG Personal Trainer"></div><h2>Entrar</h2><div class="card"><label>Email</label><input id="l_e" type="email" inputmode="email" autocomplete="username"><label>Contraseña</label><input id="l_p" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button class="btn" onclick="doLogin()">Entrar</button><br><br><a href="#" class="mut" onclick="doForgot();return false">¿Olvidaste tu contraseña?</a></div><p class="mut" style="text-align:center"><a href="#/privacidad" class="mut">Política de privacidad</a></p>`}
+function vConsent(){return`<div class="hero"><img src="logo.png" alt="RRG"></div>${POLICY}<div class="card"><label style="text-transform:none;font-size:14px;color:var(--tx)"><input type="checkbox" id="cons" style="width:auto"> He leído la política de privacidad y consiento el tratamiento de mis datos de salud para recibir el servicio.</label><br><br><button class="btn" onclick="acceptPolicy()">Aceptar y entrar</button> <button class="btn ghost" onclick="logout()">Salir</button></div>`}
+async function acceptPolicy(){if(!$('#cons').checked)return toast('Marca la casilla para continuar');const{error}=await sb.rpc('accept_privacy',{v:POLICY_V});if(error)return toast('No se pudo guardar');await loadClient();render()}
+async function refreshClient(){if(ROLE==='client'&&!document.hidden){try{await loadClient();const act=document.activeElement;if(!act||act.tagName==='BODY')render(true)}catch(e){}}}
+function vCliente(){if(!MYC)return`<h2>Hola</h2><div class="card">Tu entrenadora aún no ha vinculado tu cuenta. Escríbele y lo arregla.</div><button class="btn ghost" onclick="logout()">Salir</button>`;
+if(MYC.consent_at==null||MYC.consent_version!==POLICY_V)return vConsent();
+const d=MYC.data||{},nx=MYS.filter(s=>!s.done&&s.dt>=new Date().toISOString().slice(0,16)).sort((a,b)=>a.dt.localeCompare(b.dt))[0],b=d.bono||{total:0,used:0};
+return`<h2>Hola, ${esc(MYC.name.split(' ')[0])}</h2>
+<div class="card"><div class="mut">Próxima sesión</div>${nx?`<div class="big" style="font-size:22px">${fdate(nx.dt)}</div><div class="mut">${esc(nx.service||'')}</div>`:'<div>Aún sin fecha. Escríbeme y la fijamos.</div>'}</div>
+${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.max(0,b.total-b.used)} de ${b.total} sesiones</b><div class="bono"><i style="width:${Math.max(0,b.total-b.used)/b.total*100}%"></i></div></div>`:''}
+<h3>Tus rutinas</h3>${(d.routines||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${esc(e.n)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
+<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>
+${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
+<p><button class="btn ghost sm" onclick="dlMine()">Descargar mis datos</button> <a class="btn ghost sm" href="#/privacidad">Privacidad</a> <button class="btn ghost sm" onclick="logout()">Salir</button></p>`}
+function dlMine(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({cliente:MYC,sesiones:MYS},null,1)],{type:'application/json'}));a.download='mis-datos-rrgfit.json';a.click()}
+
+function render(keep){const h=location.hash.replace(/^#\/?/,'');const [p,a]=h.split('/');
+const y=window.scrollY;const trainer=ROLE==='trainer';
+$('#nav').style.display=trainer&&p!=='privacidad'?'flex':'none';
+if(!trainer)$('#sub').textContent=ME?'Tu entrenamiento':'';
 const sec=p===''?'':(p==='cliente'?'clientes':p==='rutina'?'rutinas':p);
 $('#nav').innerHTML=nav.map(n=>`<button class="${sec===n[0]?'on':''}" onclick="go('#/${n[0]}')"><b>${n[1]}</b>${n[2]}</button>`).join('');
-let v;if(cli)v=vCliente(h.slice(2));else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ajustes')v=vAjustes();else v=vInicio();
-$('#app').innerHTML=v;if(!cli||true)window.scrollTo(0,0)}
-addEventListener('hashchange',render);render();
+let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ajustes')v=vAjustes();else v=vInicio();
+$('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0,0)}
+addEventListener('hashchange',()=>render());
+setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
+boot();
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
