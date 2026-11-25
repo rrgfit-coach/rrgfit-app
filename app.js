@@ -118,7 +118,7 @@ ${c.tracking?`<h3>Progreso</h3><div class="card">${chart([...c.measures].sort((a
 <div class="g2" style="margin-top:8px"><div><label>Peso (kg)</label><input id="m_w" type="number" step="0.1"></div><div><label>Cintura (cm)</label><input id="m_c" type="number" step="0.5"></div></div>
 <button class="btn sm" onclick="addM()">Añadir registro</button>
 ${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div class="ex mut">${m.d}: ${m.w||'–'} kg · cintura ${m.c||'–'} cm</div>`).join('')}</div>`:''}
-<h3>Rutinas asignadas</h3>${c.routines.map((r,i)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn del sm" onclick="unassign(${i})">Quitar</button></div>${r.items.map(e=>`<div class="ex">${esc(e.n)} <span class="mut">· ${e.s}x${esc(e.r)} ${esc(e.note||'')}</span></div>`).join('')}</div>`).join('')||'<div class="empty">Sin rutinas</div>'}
+<h3>Rutinas asignadas</h3>${c.routines.map((r,i)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn del sm" onclick="unassign(${i})">Quitar</button></div>${r.items.map(e=>`<div class="ex">${exLink(e)} <span class="mut">· ${e.s}x${esc(e.r)} ${esc(e.note||'')}</span></div>`).join('')}</div>`).join('')||'<div class="empty">Sin rutinas</div>'}
 <div class="card"><label>Asignar rutina</label><select id="as">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><button class="btn sm" onclick="assign()">Asignar</button></div>
 <h3>Notas de sesión</h3><div class="card"><textarea id="n_t" rows="2" placeholder="Cómo fue la sesión…"></textarea><button class="btn sm" onclick="addN()">Guardar nota</button>
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
@@ -132,14 +132,21 @@ function unassign(i){window._c.routines.splice(i,1);save();render()}
 
 function vRutinas(){return`<h2>Rutinas</h2>${S.routines.map(r=>`<div class="card click" onclick="go('#/rutina/${r.id}')"><div class="row"><b>${esc(r.name)}</b><span class="tag">${esc(r.cat||'')}</span></div><div class="mut">${r.items.length} ejercicios</div></div>`).join('')||'<div class="empty">Sin rutinas</div>'}<button class="btn fab" onclick="go('#/rutina/nueva')">+</button>`}
 function vRutina(id){const nw=id==='nueva';const r=nw?{id:uid(),name:'',cat:'Funcional',items:[]}:S.routines.find(x=>x.id===id);if(!r)return'<div class="empty">No existe</div>';window._r=JSON.parse(JSON.stringify(r));window._rn=nw;return rutinaForm()}
-function rutinaForm(){const r=window._r;const all=[...new Set(Object.values(EXS).flat())];
+function rutinaForm(){loadEX();const r=window._r;const all=[...new Set(Object.values(EXS).flat())];
 return`<button class="btn ghost sm" onclick="go('#/rutinas')">← Rutinas</button><h2>${window._rn?'Nueva rutina':'Editar rutina'}</h2>
 <div class="card"><label>Nombre</label><input id="r_name" value="${esc(r.name)}" oninput="window._r.name=this.value">
 <label>Tipo</label><select id="r_cat" onchange="window._r.cat=this.value">${SERV.map(s=>`<option ${r.cat===s?'selected':''}>${s}</option>`).join('')}</select></div>
 <h3>Ejercicios</h3>${r.items.map((e,i)=>`<div class="card"><input value="${esc(e.n)}" oninput="window._r.items[${i}].n=this.value"><div class="g2"><div><label>Series</label><input type="number" value="${e.s}" oninput="window._r.items[${i}].s=+this.value"></div><div><label>Reps / tiempo</label><input value="${esc(e.r)}" oninput="window._r.items[${i}].r=this.value"></div></div><input placeholder="Nota (opcional)" value="${esc(e.note||'')}" oninput="window._r.items[${i}].note=this.value"><button class="btn del sm" onclick="window._r.items.splice(${i},1);rerender()">Quitar</button></div>`).join('')}
-<div class="card"><label>Añadir ejercicio</label><input id="ex_n" list="exl" placeholder="Elige o escribe uno"><datalist id="exl">${all.map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button class="btn sm" onclick="addEx()">Añadir</button></div>
+<div class="card"><label>Añadir ejercicio de la lista</label><input id="pk_q" type="search" placeholder="Buscar (ej: press militar)" oninput="pkSearch(this.value)" autocomplete="off"><div id="pk"></div>
+<label>O escribe uno propio</label><input id="ex_n" placeholder="Nombre del ejercicio"><button class="btn sm" onclick="addEx()">Añadir</button></div>
 <button class="btn" onclick="saveR()">Guardar rutina</button> ${window._rn?'':`<button class="btn del" onclick="delR()">Borrar</button>`}`}
 function rerender(){$('#app').innerHTML=rutinaForm()}
+function exLink(e){return e.xid?`<a class="exl" onclick="go('#/ejercicio/${esc(e.xid)}')">${esc(e.n)} <span class="tag red">ver ▶</span></a>`:esc(e.n)}
+function pkSearch(v){const el=$('#pk');if(!window.EX){el.innerHTML='<div class="mut">Cargando lista…</div>';setTimeout(()=>{if(window.EX)pkSearch($('#pk_q').value)},800);return}
+const t=nrm(v).split(/\s+/).filter(Boolean);if(!t.length){el.innerHTML='';return}
+const l=window.EX.filter(r=>{if(!r._h)r._h=nrm(r[1]+' '+r[2]+' '+r[3].join(' ')+' '+r[4]);return t.every(x=>r._h.includes(x))}).slice(0,8);
+el.innerHTML=l.map(r=>`<div class="card row click" onclick="pkAdd('${r[0]}')"><img class="exth" src="${IMG}${r[6]}" alt=""><div style="flex:1;min-width:0"><b>${esc(r[1])}</b><div class="mut">${esc(r[3].join(', '))} · ${esc(r[4])}</div></div><span class="tag red">+</span></div>`).join('')||'<div class="mut">Nada encontrado</div>'}
+function pkAdd(id){const r=window.EX.find(x=>x[0]===id);if(!r)return;window._r.items.push({n:r[1],xid:id,s:3,r:'10',note:''});rerender();toast('Añadido: '+r[1])}
 function addEx(){const n=$('#ex_n').value.trim();if(!n)return;window._r.items.push({n,s:3,r:'10',note:''});rerender()}
 function saveR(){if(!window._r.name.trim())return toast('Pon un nombre');const r=window._r;const i=S.routines.findIndex(x=>x.id===r.id);if(i<0)S.routines.push(r);else S.routines[i]=r;save();toast('Guardada');go('#/rutinas')}
 function delR(){if(!confirm('¿Borrar la rutina? Las ya asignadas se mantienen.'))return;S.routines=S.routines.filter(x=>x.id!==window._r.id);save();go('#/rutinas')}
@@ -240,12 +247,13 @@ return`<div class="card"><div class="row"><button class="btn ghost sm" onclick="
 <div class="mut" style="margin:6px 2px">${sd[0].toUpperCase()+sd.slice(1)}</div>${ds.map(x=>`<div class="card"><b>${x.dt.slice(11,16)} · ${esc(x.service||'Sesión')}</b>${x.done?'<div class="mut">Hecha</div>':''}</div>`).join('')||'<div class="empty" style="padding:14px">Sin sesión este día</div>'}`}
 function vCliente(){if(!MYC)return`<h2>Hola</h2><div class="card">Tu entrenadora aún no ha vinculado tu cuenta. Escríbele y lo arregla.</div><button class="btn ghost" onclick="logout()">Salir</button>`;
 if(MYC.consent_at==null||MYC.consent_version!==POLICY_V)return vConsent();
+const hh=location.hash.replace(/^#\/?/,'').split('/');if(hh[0]==='ejercicio')return vEjerDet(hh[1]);
 const d=MYC.data||{},nx=MYS.filter(s=>!s.done&&s.dt>=new Date().toISOString().slice(0,16)).sort((a,b)=>a.dt.localeCompare(b.dt))[0],b=d.bono||{total:0,used:0};
 return`<h2>Hola, ${esc(MYC.name.split(' ')[0])}</h2>
 <div class="card"><div class="mut">Próxima sesión</div>${nx?`<div class="big" style="font-size:22px">${fdate(nx.dt)}</div><div class="mut">${esc(nx.service||'')}</div>`:'<div>Aún sin fecha. Escríbeme y la fijamos.</div>'}</div>
 ${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.max(0,b.total-b.used)} de ${b.total} sesiones</b><div class="bono"><i style="width:${Math.max(0,b.total-b.used)/b.total*100}%"></i></div></div>`:''}
 <h3>Tu calendario</h3>${calClient()}
-<h3>Tus rutinas</h3>${(d.routines||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${esc(e.n)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
+<h3>Tus rutinas</h3>${(d.routines||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${exLink(e)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
 ${d.tracking?`<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>`:''}
 ${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
 <p><button class="btn ghost sm" onclick="dlMine()">Descargar mis datos</button> <a class="btn ghost sm" href="#/privacidad">Privacidad</a> <button class="btn ghost sm" onclick="logout()">Salir</button></p>`}
@@ -262,7 +270,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1450';
+const APPV='20261125-1505';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
