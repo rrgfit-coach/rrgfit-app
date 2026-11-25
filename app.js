@@ -298,7 +298,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1930';
+const APPV='20261125-1945';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
@@ -325,7 +325,7 @@ const gv=(x,k)=>k==='cintura'?x.waist:(x.m||{})[k];
 const fmtL=x=>new Date(x.d+'T12:00').toLocaleDateString('es-ES')+': '+[x.weight!=null?'peso '+x.weight+' kg':null,...MEAS.map(([k,l])=>gv(x,k)!=null?l.toLowerCase()+' '+gv(x,k)+' cm':null)].filter(Boolean).join(' · ');
 function cmpL(L){const A=[...L].sort((a,b)=>a.d.localeCompare(b.d));if(A.length<2)return'';const f=(k,g)=>{const v=A.filter(x=>g(x)!=null);if(v.length<2)return null;const a=g(v[0]),b=g(v[v.length-1]);return[b,b-a]};
  const rows=[['Peso (kg)',x=>x.weight],...MEAS.map(([k,l])=>[l+' (cm)',x=>gv(x,k)])].map(([l,g])=>{const r=f(l,g);return r?`<div class="ex"><span class="mut">${l}</span> ${r[0]} <span class="mut">(${r[1]>0?'+':''}${r[1].toFixed(1)} desde el primero)</span></div>`:''}).join('');return rows?`<div style="margin:6px 0"><b>Evolución</b>${rows}</div>`:''}
-async function addWL(){const d=$('#w_d').value||today();const w=$('#w_w').value;const row={client_id:MYC.id,d,weight:w?+w:null,waist:null,m:{}};let any=!!w;
+async function addWL(){const d=$('#w_d').value||today();const w=$('#w_w').value;if(w&&!(+w>=20&&+w<=400))return toast('Revisa tu peso (kg)');const row={client_id:MYC.id,d,weight:w?+w:null,waist:null,m:{}};let any=!!w;
  for(const[k]of MEAS){const v=$('#w_'+k).value;if(v===''||v==null)continue;const n=+v;if(!(n>=10&&n<=250))return toast('Revisa las medidas (cm)');any=true;if(k==='cintura')row.waist=n;else row.m[k]=n}
  if(!any)return toast('Escribe tu peso o alguna medida');const{error}=await sb.from('weight_logs').insert(row);if(error){console.error(error);return toast('Revisa los valores')}toast('Registro guardado');await loadClient();render(true)}
 async function delWL(id){if(!confirm('¿Borrar este registro?'))return;await sb.from('weight_logs').delete().eq('id',id);await loadClient();render(true)}
