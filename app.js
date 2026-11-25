@@ -16,7 +16,7 @@ let ME=null,ROLE=null,MYC=null,MYS=[],AUTHVIEW='login',RECOVERY=false;
 // ---- sincronización con la nube (entrenadora)
 let snap={clients:{},priv:{},routines:{},sessions:{},settings:''},dirty=false,saving=false,timer=null;
 const j=o=>JSON.stringify(o);
-const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
+const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
 const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[]}});
 const rowRoutine=r=>({id:r.id,name:r.name,cat:r.cat||null,items:r.items||[]});
 const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done});
@@ -42,7 +42,7 @@ async function loadTrainer(){
  for(const r of[a,b,c,d,t])if(r.error)throw r.error;
  const pv={};b.data.forEach(p=>pv[p.client_id]=p.data||{});
  S.settings=t.data.settings||{};
- S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
+ S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
  S.routines=c.data.map(r=>({id:r.id,name:r.name,cat:r.cat,items:r.items||[]}));
  S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:r.service,done:r.done}));
  snap={clients:{},priv:{},routines:{},sessions:{},settings:j(S.settings)};
@@ -102,7 +102,7 @@ ${l.length?l.map(c=>`<div class="card click" onclick="go('#/cliente/${c.id}')"><
 <button class="btn fab" onclick="go('#/cliente/nuevo')">+</button>`}
 function renderKeep(){const p=$('#q').selectionStart;render();const e=$('#q');e.focus();e.setSelectionRange(p,p)}
 
-function vFicha(id){const nw=id==='nuevo';const c=nw?{id:uid(),name:'',origin:'propio',active:true,created:today(),measures:[],logs:[],routines:[],bono:{total:0,used:0}}:cl(id);if(!c)return'<div class="empty">No existe</div>';
+function vFicha(id){const nw=id==='nuevo';const c=nw?{id:uid(),name:'',origin:'propio',active:true,created:today(),tracking:false,measures:[],logs:[],routines:[],bono:{total:0,used:0}}:cl(id);if(!c)return'<div class="empty">No existe</div>';
 window._c=c;window._nw=nw;
 const nxt=S.sessions.filter(s=>s.clientId===c.id&&!s.done&&s.dt>=new Date().toISOString().slice(0,16)).sort((a,b)=>a.dt.localeCompare(b.dt))[0];
 return`<button class="btn ghost sm" onclick="go('#/clientes')">← Clientes</button><h2>${nw?'Nuevo cliente':esc(c.name)}</h2>
@@ -111,19 +111,19 @@ return`<button class="btn ghost sm" onclick="go('#/clientes')">← Clientes</but
 <label>Objetivo</label><input id="f_goal" value="${esc(c.goal||'')}" placeholder="Perder grasa, ganar fuerza…">
 <label>Lesiones / notas médicas</label><textarea id="f_inj" rows="2">${esc(c.injuries||'')}</textarea>
 <div class="g2"><div><label>Bono: sesiones totales</label><input id="f_bt" type="number" min="0" value="${c.bono.total||0}"></div><div><label>Sesiones usadas</label><input id="f_bu" type="number" min="0" value="${c.bono.used||0}"></div></div>
-<label><input type="checkbox" id="f_act" style="width:auto" ${c.active!==false?'checked':''}> Cliente activo</label><br><br>
+<label><input type="checkbox" id="f_act" style="width:auto" ${c.active!==false?'checked':''}> Cliente activo</label><br><label><input type="checkbox" id="f_trk" style="width:auto" ${c.tracking?'checked':''}> Con registros (seguimiento de peso y medidas, para clientes de dieta)</label><br><br>
 <button class="btn" onclick="saveC(${nw})">Guardar</button> ${nw?'':`<button class="btn del" onclick="delC('${c.id}')">Borrar</button>`}</div>
 ${nw?'':`
-<h3>Progreso</h3><div class="card">${chart([...c.measures].sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}
+${c.tracking?`<h3>Progreso</h3><div class="card">${chart([...c.measures].sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}
 <div class="g2" style="margin-top:8px"><div><label>Peso (kg)</label><input id="m_w" type="number" step="0.1"></div><div><label>Cintura (cm)</label><input id="m_c" type="number" step="0.5"></div></div>
 <button class="btn sm" onclick="addM()">Añadir registro</button>
-${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div class="ex mut">${m.d}: ${m.w||'–'} kg · cintura ${m.c||'–'} cm</div>`).join('')}</div>
+${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div class="ex mut">${m.d}: ${m.w||'–'} kg · cintura ${m.c||'–'} cm</div>`).join('')}</div>`:''}
 <h3>Rutinas asignadas</h3>${c.routines.map((r,i)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn del sm" onclick="unassign(${i})">Quitar</button></div>${r.items.map(e=>`<div class="ex">${esc(e.n)} <span class="mut">· ${e.s}x${esc(e.r)} ${esc(e.note||'')}</span></div>`).join('')}</div>`).join('')||'<div class="empty">Sin rutinas</div>'}
 <div class="card"><label>Asignar rutina</label><select id="as">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><button class="btn sm" onclick="assign()">Asignar</button></div>
 <h3>Notas de sesión</h3><div class="card"><textarea id="n_t" rows="2" placeholder="Cómo fue la sesión…"></textarea><button class="btn sm" onclick="addN()">Guardar nota</button>
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
 ${accesoCard(c)}`}`}
-function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
+function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;c.tracking=$('#f_trk').checked;if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
 function delC(id){if(!confirm('¿Borrar este cliente y sus datos?'))return;S.clients=S.clients.filter(c=>c.id!==id);S.sessions=S.sessions.filter(s=>s.clientId!==id);save();go('#/clientes')}
 function addM(){const c=window._c;const w=$('#m_w').value,k=$('#m_c').value;if(!w&&!k)return;c.measures.push({d:today(),w:w?+w:null,c:k?+k:null});save();render()}
 function addN(){const t=$('#n_t').value.trim();if(!t)return;const c=window._c;c.logs=c.logs||[];c.logs.unshift({d:today(),t});c.lastContact=today();save();render()}
@@ -246,7 +246,7 @@ return`<h2>Hola, ${esc(MYC.name.split(' ')[0])}</h2>
 ${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.max(0,b.total-b.used)} de ${b.total} sesiones</b><div class="bono"><i style="width:${Math.max(0,b.total-b.used)/b.total*100}%"></i></div></div>`:''}
 <h3>Tu calendario</h3>${calClient()}
 <h3>Tus rutinas</h3>${(d.routines||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${esc(e.n)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
-<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>
+${d.tracking?`<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>`:''}
 ${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
 <p><button class="btn ghost sm" onclick="dlMine()">Descargar mis datos</button> <a class="btn ghost sm" href="#/privacidad">Privacidad</a> <button class="btn ghost sm" onclick="logout()">Salir</button></p>`}
 function dlMine(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({cliente:MYC,sesiones:MYS},null,1)],{type:'application/json'}));a.download='mis-datos-rrgfit.json';a.click()}
