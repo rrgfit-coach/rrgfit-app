@@ -22,7 +22,7 @@ const daysAgo=d=>d?Math.floor((Date.now()-new Date(d))/864e5):999;
 const b64=o=>btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const unb64=s=>JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g,'+').replace(/_/g,'/')))));
 const go=h=>{location.hash=h};
-const nav=[['','🏠','Inicio'],['clientes','👥','Clientes'],['rutinas','🏋️','Rutinas'],['agenda','📅','Agenda'],['ajustes','⚙️','Ajustes']];
+const nav=[['','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/></svg>','Inicio'],['clientes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6z"/><circle cx="17" cy="9" r="2.5"/></svg>','Clientes'],['rutinas','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 9h3v6H2zM19 9h3v6h-3zM5 7h3v10H5zM16 7h3v10h-3zM8 11h8v2H8z"/></svg>','Rutinas'],['agenda','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 5h16v16H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 9h16v2H4zM8 2h2v5H8zM14 2h2v5h-2z"/></svg>','Agenda'],['ajustes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4z"/></svg>','Ajustes']];
 let filt='todos',q='';
 
 function bonoBar(c){if(!c.bono||!c.bono.total)return'';const left=c.bono.total-c.bono.used;return`<div class="mut">Bono: quedan ${left} de ${c.bono.total}</div><div class="bono"><i style="width:${Math.max(0,left)/c.bono.total*100}%"></i></div>`}
