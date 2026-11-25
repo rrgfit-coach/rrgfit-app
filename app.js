@@ -73,7 +73,7 @@ const cl=id=>S.clients.find(c=>c.id===id);
 const fdate=d=>d?new Date(d).toLocaleString('es-ES',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
 const daysAgo=d=>d?Math.floor((Date.now()-new Date(d))/864e5):999;
 const go=h=>{location.hash=h};
-const nav=[['','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/></svg>','Inicio'],['clientes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6z"/><circle cx="17" cy="9" r="2.5"/></svg>','Clientes'],['rutinas','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 9h3v6H2zM19 9h3v6h-3zM5 7h3v10H5zM16 7h3v10h-3zM8 11h8v2H8z"/></svg>','Rutinas'],['agenda','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 5h16v16H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 9h16v2H4zM8 2h2v5H8zM14 2h2v5h-2z"/></svg>','Agenda'],['ajustes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4z"/></svg>','Ajustes']];
+const nav=[['','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/></svg>','Inicio'],['clientes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6z"/><circle cx="17" cy="9" r="2.5"/></svg>','Clientes'],['rutinas','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2 9h3v6H2zM19 9h3v6h-3zM5 7h3v10H5zM16 7h3v10h-3zM8 11h8v2H8z"/></svg>','Rutinas'],['agenda','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 5h16v16H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 9h16v2H4zM8 2h2v5H8zM14 2h2v5h-2z"/></svg>','Agenda'],['ejercicios','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="4.5" r="2.5"/><path d="M11 8h2l1 5 3 1-.5 2-4-1-1.5 6h-2l1.5-7-2-1.5L7 15l-1-1.5L9 9z"/></svg>','Ejercicios'],['ajustes','<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M11 1h2v4h-2zM11 19h2v4h-2zM1 11h4v2H1zM19 11h4v2h-4z"/></svg>','Ajustes']];
 let filt='todos',q='';
 function bonoBar(c){if(!c.bono||!c.bono.total)return'';const left=c.bono.total-c.bono.used;return`<div class="mut">Bono: quedan ${left} de ${c.bono.total}</div><div class="bono"><i style="width:${Math.max(0,left)/c.bono.total*100}%"></i></div>`}
 function chart(pts,key,unit){pts=pts.filter(p=>p[key]);if(pts.length<2)return`<div class="mut">Añade al menos 2 registros para ver la gráfica.</div>`;
@@ -167,6 +167,26 @@ return`<h2>Agenda</h2><div class="card"><div class="row"><button class="btn ghos
 <div class="card"><label>Añadir sesión</label><select id="a_c">${S.clients.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">(crea un cliente antes)</option>'}</select>
 <div class="g2"><div><label>Fecha y hora</label><input id="a_d" type="datetime-local" value="${def}"></div><div><label>Servicio</label><select id="a_s">${SERV.map(s=>`<option>${s}</option>`).join('')}</select></div></div><button class="btn" onclick="addS()">Añadir sesión</button></div>
 <h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}</div></div><div><button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
+
+const IMG='https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/';
+let EXQ='',EXM='',EXN=60;
+const nrm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function loadEX(){if(window.EX||window._exl)return;window._exl=1;const e=document.createElement('script');e.src='ex.js';e.onload=()=>{if(/^#\/ejercicio/.test(location.hash))render(true)};e.onerror=()=>{window._exl=0};document.head.appendChild(e)}
+function exFilter(){if(!window.EX)return[];const t=nrm(EXQ).split(/\s+/).filter(Boolean);return window.EX.filter(r=>{if(EXM&&!r[3].includes(EXM))return false;if(!t.length)return true;if(!r._h)r._h=nrm(r[1]+' '+r[2]+' '+r[3].join(' ')+' '+r[4]);return t.every(x=>r._h.includes(x))})}
+function exCard(r){return`<div class="card row click" onclick="go('#/ejercicio/${r[0]}')"><img class="exth" loading="lazy" src="${IMG}${r[6]}" alt=""><div style="flex:1;min-width:0"><b>${esc(r[1])}</b><div class="mut">${esc(r[2])}</div><div class="mut">${esc(r[3].join(', '))} · ${esc(r[4])}</div></div></div>`}
+function exList(){const l=exFilter();const sh=l.slice(0,EXN);let h='',L='';sh.forEach(r=>{const c=r[1][0].toUpperCase();if(c!==L){L=c;h+=`<h3>${esc(c)}</h3>`}h+=exCard(r)});
+if(!window.EX)h='<div class="empty">Cargando ejercicios…</div>';else if(!l.length)h='<div class="empty">No encuentro ese ejercicio. Prueba con otra palabra (por ejemplo "sentadilla" o "press").</div>';
+if(l.length>EXN)h+=`<button class="btn ghost" style="width:100%" onclick="EXN+=60;exUp()">Mostrar más (${l.length-EXN})</button>`;
+return `<div class="mut" style="margin-bottom:8px">${window.EX?l.length+' ejercicios':''}</div>`+h}
+function exUp(){const e=$('#exl');if(e)e.innerHTML=exList()}
+function exSearch(v){EXQ=v;EXN=60;exUp()}
+function exMus(v){EXM=v;EXN=60;exUp()}
+function vEjer(){loadEX();const ms=['abdominales','abductores','aductores','antebrazos','bíceps','cuello','cuádriceps','dorsales','espalda media','gemelos','glúteos','hombros','isquiotibiales','lumbar','pecho','trapecio','tríceps'];
+return`<h2>Ejercicios</h2><input id="exq" type="search" placeholder="Buscar ejercicio (ej: press militar)" value="${esc(EXQ)}" oninput="exSearch(this.value)" autocomplete="off"><select onchange="exMus(this.value)"><option value="">Todos los músculos</option>${ms.map(m=>`<option${m===EXM?' selected':''}>${m}</option>`).join('')}</select><div id="exl">${exList()}</div>`}
+function vEjerDet(id){loadEX();if(!window.EX)return'<div class="empty">Cargando…</div>';const r=window.EX.find(x=>x[0]===id);if(!r)return'<div class="empty">Ejercicio no encontrado</div><button class="btn ghost" onclick="go(\'#/ejercicios\')">Volver</button>';
+return`<button class="btn ghost sm" onclick="history.back()">‹ Volver</button><h2 style="margin-top:12px">${esc(r[1])}</h2><div class="mut">${esc(r[2])}</div>
+<div class="exan card"><img src="${IMG}${r[6]}" alt="${esc(r[1])}, posición inicial"><img class="b" src="${IMG}${r[7]}" alt="${esc(r[1])}, posición final"></div>
+<div class="card"><span class="tag red">${esc(r[3].join(', '))}</span><span class="tag">${esc(r[4])}</span><span class="tag">${esc(r[5])}</span></div>`}
 function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
 function delS(id){S.sessions=S.sessions.filter(s=>s.id!==id);save();render()}
 function accesoCard(c){
@@ -207,12 +227,24 @@ return`<div class="hero"><img src="logo.png" alt="RRG Personal Trainer"></div><h
 function vConsent(){return`<div class="hero"><img src="logo.png" alt="RRG"></div>${POLICY}<div class="card"><label style="text-transform:none;font-size:14px;color:var(--tx)"><input type="checkbox" id="cons" style="width:auto"> He leído la política de privacidad y consiento el tratamiento de mis datos de salud para recibir el servicio.</label><br><br><button class="btn" onclick="acceptPolicy()">Aceptar y entrar</button> <button class="btn ghost" onclick="logout()">Salir</button></div>`}
 async function acceptPolicy(){if(!$('#cons').checked)return toast('Marca la casilla para continuar');const{error}=await sb.rpc('accept_privacy',{v:POLICY_V});if(error)return toast('No se pudo guardar');await loadClient();render()}
 async function refreshClient(){if(ROLE==='client'&&!document.hidden){try{await loadClient();const act=document.activeElement;if(!act||act.tagName==='BODY')render(true)}catch(e){}}}
+function calClient(){const n=new Date();if(!CAL)CAL={y:n.getFullYear(),m:n.getMonth(),sel:lday(n)};const td=lday(n);
+const first=new Date(CAL.y,CAL.m,1),off=(first.getDay()+6)%7,dim=new Date(CAL.y,CAL.m+1,0).getDate();
+const cnt={};MYS.forEach(x=>{const k=x.dt.slice(0,10);cnt[k]=(cnt[k]||0)+1});
+const mn=first.toLocaleString('es-ES',{month:'long',year:'numeric'});
+let cells=['L','M','X','J','V','S','D'].map(x=>`<div class="cw">${x}</div>`).join('');
+for(let i=0;i<off;i++)cells+='<div></div>';
+for(let d=1;d<=dim;d++){const k=CAL.y+'-'+pad(CAL.m+1)+'-'+pad(d);const c=cnt[k]||0;cells+=`<button class="cd${k===td?' td':''}${k===CAL.sel?' sel':''}" onclick="calSel('${k}')">${d}${c?`<i>${c}</i>`:''}</button>`}
+const ds=MYS.filter(x=>x.dt.slice(0,10)===CAL.sel).sort((a,b)=>a.dt.localeCompare(b.dt));
+const sd=new Date(CAL.sel+'T12:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+return`<div class="card"><div class="row"><button class="btn ghost sm" onclick="calGo(-1)">‹</button><b>${mn[0].toUpperCase()+mn.slice(1)}</b><button class="btn ghost sm" onclick="calGo(1)">›</button></div><div class="cal">${cells}</div><button class="btn ghost sm" style="margin-top:8px" onclick="calToday()">Hoy</button></div>
+<div class="mut" style="margin:6px 2px">${sd[0].toUpperCase()+sd.slice(1)}</div>${ds.map(x=>`<div class="card"><b>${x.dt.slice(11,16)} · ${esc(x.service||'Sesión')}</b>${x.done?'<div class="mut">Hecha</div>':''}</div>`).join('')||'<div class="empty" style="padding:14px">Sin sesión este día</div>'}`}
 function vCliente(){if(!MYC)return`<h2>Hola</h2><div class="card">Tu entrenadora aún no ha vinculado tu cuenta. Escríbele y lo arregla.</div><button class="btn ghost" onclick="logout()">Salir</button>`;
 if(MYC.consent_at==null||MYC.consent_version!==POLICY_V)return vConsent();
 const d=MYC.data||{},nx=MYS.filter(s=>!s.done&&s.dt>=new Date().toISOString().slice(0,16)).sort((a,b)=>a.dt.localeCompare(b.dt))[0],b=d.bono||{total:0,used:0};
 return`<h2>Hola, ${esc(MYC.name.split(' ')[0])}</h2>
 <div class="card"><div class="mut">Próxima sesión</div>${nx?`<div class="big" style="font-size:22px">${fdate(nx.dt)}</div><div class="mut">${esc(nx.service||'')}</div>`:'<div>Aún sin fecha. Escríbeme y la fijamos.</div>'}</div>
 ${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.max(0,b.total-b.used)} de ${b.total} sesiones</b><div class="bono"><i style="width:${Math.max(0,b.total-b.used)/b.total*100}%"></i></div></div>`:''}
+<h3>Tu calendario</h3>${calClient()}
 <h3>Tus rutinas</h3>${(d.routines||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${esc(e.n)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
 <h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>
 ${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
@@ -223,9 +255,9 @@ function render(keep){const h=location.hash.replace(/^#\/?/,'');const [p,a]=h.sp
 const y=window.scrollY;const trainer=ROLE==='trainer';
 $('#nav').style.display=trainer&&p!=='privacidad'?'flex':'none';
 if(!trainer)$('#sub').textContent=ME?'Tu entrenamiento':'';
-const sec=p===''?'':(p==='cliente'?'clientes':p==='rutina'?'rutinas':p);
+const sec=p===''?'':(p==='cliente'?'clientes':p==='rutina'?'rutinas':p==='ejercicio'?'ejercicios':p);
 $('#nav').innerHTML=nav.map(n=>`<button class="${sec===n[0]?'on':''}" onclick="go('#/${n[0]}')"><b>${n[1]}</b>${n[2]}</button>`).join('');
-let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ajustes')v=vAjustes();else v=vInicio();
+let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ejercicios')v=vEjer();else if(p==='ejercicio')v=vEjerDet(a);else if(p==='ajustes')v=vAjustes();else v=vInicio();
 $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0,0)}
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
