@@ -29,14 +29,14 @@ function bonoBar(c){if(!c.bono||!c.bono.total)return'';const left=c.bono.total-c
 function chart(pts,key,unit){pts=pts.filter(p=>p[key]);if(pts.length<2)return`<div class="mut">Añade al menos 2 registros para ver la gráfica.</div>`;
 const v=pts.map(p=>+p[key]),mn=Math.min(...v),mx=Math.max(...v),r=(mx-mn)||1;
 const xy=pts.map((p,i)=>[10+i*(300/(pts.length-1)),100-(p[key]-mn)/r*80]);
-return`<svg class="chart" viewBox="0 0 320 120"><polyline fill="none" stroke="#e5173f" stroke-width="3" points="${xy.map(a=>a.join(',')).join(' ')}"/>${xy.map((a,i)=>`<circle cx="${a[0]}" cy="${a[1]}" r="4" fill="#fff"/>`).join('')}<text x="10" y="116" fill="#9a9aa3" font-size="10">${mn} ${unit}</text><text x="250" y="14" fill="#9a9aa3" font-size="10">${mx} ${unit}</text></svg>`}
+return`<svg class="chart" viewBox="0 0 320 120"><polyline fill="none" stroke="#e8731a" stroke-width="3" points="${xy.map(a=>a.join(',')).join(' ')}"/>${xy.map((a,i)=>`<circle cx="${a[0]}" cy="${a[1]}" r="4" fill="#fff"/>`).join('')}<text x="10" y="116" fill="#9a9aa3" font-size="10">${mn} ${unit}</text><text x="250" y="14" fill="#9a9aa3" font-size="10">${mx} ${unit}</text></svg>`}
 
 function vInicio(){const n=new Date();const day=today();
 const ts=S.sessions.filter(s=>s.dt.slice(0,10)===day&&!s.done).sort((a,b)=>a.dt.localeCompare(b.dt));
 const cold=S.clients.filter(c=>c.active!==false&&daysAgo(c.lastContact||c.created)>=7);
 const low=S.clients.filter(c=>c.active!==false&&c.bono&&c.bono.total&&c.bono.total-c.bono.used<=1);
 const act=S.clients.filter(c=>c.active!==false).length;
-return`<h2>Hola, ${esc(S.settings.name||'')} 💪</h2>
+return`<div class="hero"><img src="logo.png" alt="RRG Personal Trainer"></div><h2>Hola, ${esc(S.settings.name||'')} 💪</h2>
 <div class="stats"><div class="card"><div class="big">${act}</div><div class="mut">clientes activos</div></div><div class="card"><div class="big">${ts.length}</div><div class="mut">sesiones hoy</div></div><div class="card"><div class="big">${low.length}</div><div class="mut">bonos por acabar</div></div></div>
 <h3>Sesiones de hoy</h3>${ts.length?ts.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}</div></div><button class="btn sm" onclick="doneS('${s.id}')">Hecha ✓</button></div>`}).join(''):'<div class="empty">Nada para hoy. Añade sesiones en Agenda.</div>'}
 <h3>Llevan días sin contacto</h3>${cold.length?cold.map(c=>`<div class="card click row" onclick="go('#/cliente/${c.id}')"><div><b>${esc(c.name)}</b><div class="mut">${daysAgo(c.lastContact||c.created)} días</div></div>${c.phone?`<a class="btn wa sm" onclick="event.stopPropagation();contacted('${c.id}')" href="https://wa.me/${waNum(c.phone)}" target="_blank">WhatsApp</a>`:''}</div>`).join(''):'<div class="empty">Todos al día 👌</div>'}
