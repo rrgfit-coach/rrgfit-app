@@ -49,3 +49,4 @@ nav button{font-size:10px;padding:10px 0}
 @media print{@page{size:A4;margin:14mm 14mm 12mm}body.pvon>*:not(#pv){display:none!important}#pv{position:static}.pvbar{display:none}body{background:#fff;padding:0}.pvdoc{padding:0;max-width:none}.pvdoc a{text-decoration:none}
 .pvp{page-break-after:always}.pvp:last-child{page-break-after:auto}.pvt{break-inside:avoid}.pvdoc table.pvw>thead{display:table-header-group}.pvdoc table.pvw>tfoot{display:table-footer-group}}
 .pvdoc td.pvhead,.pvdoc td.pvfoot{display:table-cell}.pvdoc table.pvw>tbody>tr>td{font-family:Calibri,Carlito,system-ui,sans-serif;font-size:15px;line-height:1.45}
+.chk{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:13px}.chk input{width:auto}
