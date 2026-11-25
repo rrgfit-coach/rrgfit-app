@@ -301,7 +301,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-2030';
+const APPV='20261125-2045';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
@@ -323,7 +323,7 @@ const xk=e=>String(e.n||'').trim().toLowerCase();
 const xlLast=e=>MYW.filter(x=>x.exercise&&String(x.exercise).trim().toLowerCase()===xk(e)).sort((a,b)=>b.d.localeCompare(a.d)||String(b.created_at).localeCompare(String(a.created_at)));
 function xlBox(e,ri,ei){const L=xlLast(e);const l=L[0];return`<div class="row" style="margin-top:4px;gap:6px"><span class="mut" style="font-size:12px">${l?'Última vez: '+l.weight+' kg ('+new Date(l.d+'T12:00').toLocaleDateString('es-ES')+')':'Sin peso anotado'}</span><span><input id="xl_${ri}_${ei}" type="number" step="0.5" inputmode="decimal" placeholder="kg" style="width:70px"> <button class="btn ghost sm" onclick="addXL(${ri},${ei})">Anotar</button></span></div>`}
 async function addXL(ri,ei){const e=((MYC.data||{}).routines||[])[ri].items[ei];const v=$('#xl_'+ri+'_'+ei).value;const n=+v;if(v===''||!(n>0&&n<=500))return toast('Escribe el peso en kg');const{error}=await sb.from('weight_logs').insert({client_id:MYC.id,exercise:String(e.n).trim(),d:today(),weight:n});if(error){console.error(error);return toast('No se pudo guardar')}toast('Peso anotado');await loadClient();render(true)}
-const MEAS=[['cintura','Cintura'],['cadera','Cadera'],['gluteo','Glúteo'],['pecho','Pecho'],['brd','Brazo derecho'],['bri','Brazo izquierdo'],['mud','Muslo derecho'],['mui','Muslo izquierdo']];
+const MEAS=[['cintura','Cintura'],['cadera','Cadera'],['gluteo','Glúteo'],['pecho','Pecho'],['brd','Brazo derecho'],['bri','Brazo izquierdo'],['mud','Muslo derecho'],['mui','Muslo izquierdo'],['gmd','Gemelo derecho'],['gmi','Gemelo izquierdo']];
 const gv=(x,k)=>k==='cintura'?x.waist:(x.m||{})[k];
 const fmtL=x=>new Date(x.d+'T12:00').toLocaleDateString('es-ES')+': '+[x.weight!=null?'peso '+x.weight+' kg':null,...MEAS.map(([k,l])=>gv(x,k)!=null?l.toLowerCase()+' '+gv(x,k)+' cm':null)].filter(Boolean).join(' · ');
 function cmpL(L){const A=[...L].sort((a,b)=>a.d.localeCompare(b.d));if(A.length<2)return'';const f=(k,g)=>{const v=A.filter(x=>g(x)!=null);if(v.length<2)return null;const a=g(v[0]),b=g(v[v.length-1]);return[b,b-a]};
