@@ -144,12 +144,30 @@ function addEx(){const n=$('#ex_n').value.trim();if(!n)return;window._r.items.pu
 function saveR(){if(!window._r.name.trim())return toast('Pon un nombre');const r=window._r;const i=S.routines.findIndex(x=>x.id===r.id);if(i<0)S.routines.push(r);else S.routines[i]=r;save();toast('Guardada');go('#/rutinas')}
 function delR(){if(!confirm('¿Borrar la rutina? Las ya asignadas se mantienen.'))return;S.routines=S.routines.filter(x=>x.id!==window._r.id);save();go('#/rutinas')}
 
-function vAgenda(){const now=new Date().toISOString().slice(0,16);const up=S.sessions.filter(s=>!s.done).sort((a,b)=>a.dt.localeCompare(b.dt));
-const d=new Date(Date.now()+36e5);const def=new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,16);
-return`<h2>Agenda</h2><div class="card"><label>Cliente</label><select id="a_c">${S.clients.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">(crea un cliente antes)</option>'}</select>
+let CAL=null;
+const pad=n=>String(n).padStart(2,'0');
+const lday=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+function calGo(n){CAL.m+=n;if(CAL.m<0){CAL.m=11;CAL.y--}if(CAL.m>11){CAL.m=0;CAL.y++}render()}
+function calSel(d){CAL.sel=d;render()}
+function calToday(){const n=new Date();CAL={y:n.getFullYear(),m:n.getMonth(),sel:lday(n)};render()}
+function vAgenda(){const n=new Date();if(!CAL)CAL={y:n.getFullYear(),m:n.getMonth(),sel:lday(n)};
+const up=S.sessions.filter(s=>!s.done&&s.dt>=lday(n)).sort((a,b)=>a.dt.localeCompare(b.dt));
+const first=new Date(CAL.y,CAL.m,1),off=(first.getDay()+6)%7,dim=new Date(CAL.y,CAL.m+1,0).getDate(),td=lday(n);
+const cnt={};S.sessions.forEach(x=>{const k=x.dt.slice(0,10);cnt[k]=(cnt[k]||0)+1});
+const mn=first.toLocaleString('es-ES',{month:'long',year:'numeric'});
+let cells=['L','M','X','J','V','S','D'].map(x=>`<div class="cw">${x}</div>`).join('');
+for(let i=0;i<off;i++)cells+='<div></div>';
+for(let d=1;d<=dim;d++){const k=CAL.y+'-'+pad(CAL.m+1)+'-'+pad(d);const c=cnt[k]||0;cells+=`<button class="cd${k===td?' td':''}${k===CAL.sel?' sel':''}" onclick="calSel('${k}')">${d}${c?`<i>${c}</i>`:''}</button>`}
+const ds=S.sessions.filter(x=>x.dt.slice(0,10)===CAL.sel).sort((a,b)=>a.dt.localeCompare(b.dt));
+const sd=new Date(CAL.sel+'T12:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+const def=CAL.sel+'T'+(CAL.sel===td?pad(Math.min(23,n.getHours()+1))+':00':'10:00');
+const sr=s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${s.dt.slice(11,16)} · ${esc(c?c.name:'?')}</b><div class="mut">${esc(s.service)}${s.done?' · hecha':''}</div></div><div>${s.done?'':`<button class="btn sm" onclick="doneS('${s.id}')">✓</button> `}<button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`};
+return`<h2>Agenda</h2><div class="card"><div class="row"><button class="btn ghost sm" onclick="calGo(-1)">‹</button><b style="text-transform:capitalize">${mn}</b><button class="btn ghost sm" onclick="calGo(1)">›</button></div><div class="cal">${cells}</div><button class="btn ghost sm" style="margin-top:8px" onclick="calToday()">Hoy</button></div>
+<h3 style="text-transform:capitalize">${sd}</h3>${ds.map(sr).join('')||'<div class="empty">Nada este día</div>'}
+<div class="card"><label>Añadir sesión</label><select id="a_c">${S.clients.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">(crea un cliente antes)</option>'}</select>
 <div class="g2"><div><label>Fecha y hora</label><input id="a_d" type="datetime-local" value="${def}"></div><div><label>Servicio</label><select id="a_s">${SERV.map(s=>`<option>${s}</option>`).join('')}</select></div></div><button class="btn" onclick="addS()">Añadir sesión</button></div>
 <h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}</div></div><div><button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
-function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false});save();toast('Sesión añadida');render()}
+function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
 function delS(id){S.sessions=S.sessions.filter(s=>s.id!==id);save();render()}
 function accesoCard(c){
  if(c.user_id)return`<h3>Acceso a la app</h3><div class="card"><div>✅ Tiene acceso con <b>${esc(c.email||'su email')}</b></div><div class="mut">${c.consent_at?'Ha aceptado la política de privacidad el '+new Date(c.consent_at).toLocaleDateString('es-ES'):'Aún no ha aceptado la política de privacidad (la verá al entrar).'}</div><div class="mut">Si olvida la contraseña, puede pedir una nueva con "¿Olvidaste tu contraseña?" en la pantalla de entrada.</div><br>
