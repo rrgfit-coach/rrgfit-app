@@ -4,7 +4,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:cal
 .logo{font-weight:900;letter-spacing:2px;font-size:22px}.logo span{color:var(--red);margin-left:4px}#sub{color:var(--mut);font-size:13px}
 main{max-width:720px;margin:0 auto;padding:14px}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#111113;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
-nav button{flex:1;background:none;border:0;color:var(--mut);padding:12px 0;font-size:12px;font-weight:600}nav button b{display:block;font-size:20px}nav button.on{color:var(--red)}
+nav button{flex:1;background:none;border:0;color:var(--mut);padding:12px 0;font-size:12px;font-weight:600}nav button b{display:block;height:24px}nav button.on{color:var(--red)}
 h2{margin:6px 0 12px;font-size:22px;text-transform:uppercase;letter-spacing:1px}h3{margin:16px 0 8px;font-size:15px;color:var(--mut);text-transform:uppercase;letter-spacing:1px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
 .row{display:flex;gap:10px;align-items:center;justify-content:space-between}.card.click{cursor:pointer}
