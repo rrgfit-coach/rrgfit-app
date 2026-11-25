@@ -174,7 +174,7 @@ function exportD(){const a=document.createElement('a');a.href=URL.createObjectUR
 
 const POLICY=`<h2>Política de privacidad</h2><div class="card legal">
 <p class="mut">Versión ${POLICY_V}</p>
-<h3>Quién es el responsable</h3><p>Raquel Rodríguez Gómez (RRG FIT), NIF 50250597J. Dirección: Antonio Celedonio Lorente nº3. Email de contacto: rrgfit.coach@gmail.com.</p>
+<h3>Quién es el responsable</h3><p>Raquel Rodríguez Gómez (RRG FIT), NIF 50250597J. Dirección: Antonio Celedonio Lorente nº3, 28600 Madrid. Email de contacto: rrgfit.coach@gmail.com.</p>
 <h3>Qué datos tratamos</h3><p>Nombre, teléfono y email; objetivo de entrenamiento; datos de salud y condición física que tú o tu entrenadora anotáis (lesiones, peso, medidas); rutinas asignadas, sesiones, bonos y notas de seguimiento.</p>
 <h3>Para qué</h3><p>Prestar el servicio de entrenamiento personal: preparar y asignar rutinas, gestionar sesiones y bonos y que puedas ver tu plan en la app.</p>
 <h3>Base legal</h3><p>La ejecución del servicio que contratas (art. 6.1.b RGPD) y, para los datos de salud, tu consentimiento explícito (art. 9.2.a RGPD), que das al aceptar esta política y puedes retirar cuando quieras.</p>
