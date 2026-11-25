@@ -48,3 +48,4 @@ nav button{font-size:10px;padding:10px 0}
 .pvdoc table.pvw>thead>tr>td{text-align:right;color:#b8955a;font:700 11px Cambria,Caladea,Georgia,serif;padding-bottom:18px}.pvdoc table.pvw>tfoot>tr>td{text-align:center;color:#b8955a;font:11px Cambria,Caladea,Georgia,serif;padding-top:14px}
 @media print{@page{size:A4;margin:14mm 14mm 12mm}body.pvon>*:not(#pv){display:none!important}#pv{position:static}.pvbar{display:none}body{background:#fff;padding:0}.pvdoc{padding:0;max-width:none}.pvdoc a{text-decoration:none}
 .pvp{page-break-after:always}.pvp:last-child{page-break-after:auto}.pvt{break-inside:avoid}.pvdoc table.pvw>thead{display:table-header-group}.pvdoc table.pvw>tfoot{display:table-footer-group}}
+.pvdoc td.pvhead,.pvdoc td.pvfoot{display:table-cell}.pvdoc table.pvw>tbody>tr>td{font-family:Calibri,Carlito,system-ui,sans-serif;font-size:15px;line-height:1.45}
