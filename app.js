@@ -149,8 +149,7 @@ const tabs=Object.keys(days).sort((x,y)=>x-y).map(k=>`<div class="pvt"><h3>TABLA
 const blank=Array.from({length:14},()=>'<tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
 const old=$('#pv');if(old)old.remove();const d=document.createElement('div');d.id='pv';
 d.innerHTML=`<div class="pvbar"><button class="btn" onclick="window.print()">Imprimir / Guardar PDF</button> <button class="btn ghost" onclick="pvClose()">Cerrar</button></div>
-<div class="pvhead">RRG FIT &nbsp;•&nbsp; PLAN DE ENTRENAMIENTO</div><div class="pvfoot">@rrg_fit &nbsp;|&nbsp; rrgfit.es &nbsp;|&nbsp; ENTRENAMIENTO PERSONALIZADO</div>
-<div class="pvdoc"><div class="pvp"><div class="pvtop"><img src="logo.png" alt=""><h1>PLAN DE ENTRENAMIENTO</h1></div>
+<div class="pvdoc"><table class="pvw"><thead><tr><td class="pvhead">RRG FIT &nbsp;•&nbsp; PLAN DE ENTRENAMIENTO</td></tr></thead><tfoot><tr><td class="pvfoot">@rrg_fit &nbsp;|&nbsp; rrgfit.es &nbsp;|&nbsp; ENTRENAMIENTO PERSONALIZADO</td></tr></tfoot><tbody><tr><td><div class="pvp"><div class="pvtop"><img src="logo.png" alt=""><h1>PLAN DE ENTRENAMIENTO</h1></div>
 <p class="pvcl"><b>CLIENTE:</b> <u>${esc(c.name||'')}</u> &nbsp;&nbsp;&nbsp; <b>FECHA:</b> <u>${new Date().toLocaleDateString('es-ES')}</u></p>
 <h4>OBJETIVO:</h4><p>${esc(goal||'Mejorar la condición física y la salud mediante un programa de entrenamiento personalizado, adaptado a tu nivel y condición física actual.')}</p>
 <p>El programa estará orientado a fortalecer de forma equilibrada todos los grupos musculares, mejorar la movilidad y la condición física general, priorizando una correcta ejecución de los ejercicios y una progresión gradual de las cargas para favorecer el bienestar físico y una mejora continua del rendimiento.</p>
@@ -158,7 +157,7 @@ d.innerHTML=`<div class="pvbar"><button class="btn" onclick="window.print()">Imp
 <h4>OBSERVACIONES:</h4><ul>${OBS.map(x=>`<li>${x}</li>`).join('')}</ul></div>
 <div class="pvp">${tabs}</div>
 <div class="pvp"><h3>REGISTRO DE PROGRESIÓN DE CARGAS</h3><p>Utiliza esta tabla para registrar los pesos utilizados en cada ejercicio y llevar un seguimiento de tu evolución.</p><p>A medida que vayas ganando fuerza y mejorando tu técnica, podrás aumentar progresivamente las cargas.</p><p>Es normal que, al aumentar el peso, tengas que reducir el número de repeticiones. El objetivo será ir recuperando poco a poco las repeticiones que realizabas con la carga anterior y, una vez conseguidas, volver a aumentar el peso.</p><p><b>Recuerda:</b> No tengas prisa por aumentar las cargas. Prioriza siempre una buena técnica, movimientos controlados y una progresión adaptada a tus capacidades, sin provocar dolor.</p>
-<table class="pvr"><thead><tr><th>FECHA</th><th class="l">EJERCICIO</th><th>SERIE 1</th><th>SERIE 2</th><th>SERIE 3</th><th>SERIE 4</th></tr></thead><tbody>${blank}</tbody></table></div></div>`;
+<table class="pvr"><thead><tr><th>FECHA</th><th class="l">EJERCICIO</th><th>SERIE 1</th><th>SERIE 2</th><th>SERIE 3</th><th>SERIE 4</th></tr></thead><tbody>${blank}</tbody></table></div></td></tr></tbody></table></div>`;
 document.body.appendChild(d);document.body.classList.add('pvon');window.scrollTo(0,0)}
 function pvClose(){const e=$('#pv');if(e)e.remove();document.body.classList.remove('pvon')}
 function pvOpen(id){pvClose();go('#/ejercicio/'+id)}
@@ -291,7 +290,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1540';
+const APPV='20261125-1555';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
