@@ -243,7 +243,7 @@ const POLICY=`<h2>Política de privacidad</h2><div class="card legal">
 <h3>Qué datos tratamos</h3><p>Nombre, teléfono y email; objetivo de entrenamiento; datos de salud y condición física que tú o tu entrenadora anotáis (lesiones, peso, medidas); rutinas asignadas, sesiones, bonos y notas de seguimiento.</p>
 <h3>Para qué</h3><p>Prestar el servicio de entrenamiento personal: preparar y asignar rutinas, gestionar sesiones y bonos y que puedas ver tu plan en la app.</p>
 <h3>Base legal</h3><p>La ejecución del servicio que contratas (art. 6.1.b RGPD) y, para los datos de salud, tu consentimiento explícito (art. 9.2.a RGPD), que das al aceptar esta política y puedes retirar cuando quieras.</p>
-<h3>Quién ve tus datos</h3><p>Solo tu entrenadora. Tú ves únicamente tus propios datos en la app. Las lesiones y notas médicas las ve solo ella, no se muestran en tu pantalla. Para guardar los datos usamos Supabase como proveedor (encargado del tratamiento), con servidores en París (UE). La web se aloja en GitHub Pages, que no recibe tus datos personales.</p>
+<h3>Quién ve tus datos</h3><p>Solo tu entrenadora. Tú ves únicamente tus propios datos en la app. Las lesiones y notas médicas las ve solo ella, no se muestran en tu pantalla. Para guardar los datos usamos Supabase como proveedor (encargado del tratamiento), con servidores en París (UE). La web se aloja en GitHub Pages, que no recibe tus datos personales. Además, tu entrenadora guarda una copia de seguridad semanal de los datos en una carpeta privada de su cuenta de Google Drive (Google actúa como proveedor de almacenamiento), y conserva las últimas 8 semanas.</p>
 <h3>Cuánto tiempo</h3><p>Mientras dure la relación con tu entrenadora. Después, los datos se borran, salvo lo que la ley obligue a conservar.</p>
 <h3>Tus derechos</h3><p>Puedes pedir acceso, rectificación, supresión, limitación, oposición y portabilidad de tus datos, y retirar tu consentimiento, escribiendo a rrgfit.coach@gmail.com. En la app puedes descargar tus datos. Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
 </div>`;
@@ -290,7 +290,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1730';
+const APPV='20261125-1745';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
