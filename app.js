@@ -20,10 +20,10 @@ let ME=null,ROLE=null,MYC=null,MYS=[],AUTHVIEW='login',RECOVERY=false;
 // ---- sincronización con la nube (entrenadora)
 let snap={clients:{},priv:{},routines:{},sessions:{},settings:''},dirty=false,saving=false,timer=null;
 const j=o=>JSON.stringify(o);
-const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,nut:c.nut||(c.tracking?'3m':''),routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
+const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,nut:c.nut||(c.tracking?'3m':''),price:c.price||null,routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
 const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[]}});
 const rowRoutine=r=>({id:r.id,name:r.name,cat:r.cat||null,items:r.items||[]});
-const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done});
+const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done,ot:s.ot||null});
 function setStatus(t,c){const e=$('#sub');if(e&&ROLE==='trainer'){e.textContent=t;e.style.color=c||''}}
 function save(){dirty=true;setStatus('Guardando…');clearTimeout(timer);timer=setTimeout(flush,500)}
 async function flush(){if(saving||ROLE!=='trainer'){return}saving=true;dirty=false;
@@ -46,9 +46,9 @@ async function loadTrainer(){
  for(const r of[a,b,c,d,t])if(r.error)throw r.error;
  const pv={};b.data.forEach(p=>pv[p.client_id]=p.data||{});
  S.settings=t.data.settings||{};
- S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,nut:x.nut||(x.tracking?'3m':''),routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
+ S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,nut:x.nut||(x.tracking?'3m':''),price:x.price||null,routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
  S.routines=c.data.map(r=>({id:r.id,name:r.name,cat:r.cat,items:r.items||[]}));
- S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done}));
+ S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done,ot:r.ot||''}));
  snap={clients:{},priv:{},routines:{},sessions:{},settings:j(S.settings)};
  S.clients.forEach(x=>{snap.clients[x.id]=j(rowClient(x));snap.priv[x.id]=j(rowPriv(x))});S.routines.forEach(x=>snap.routines[x.id]=j(rowRoutine(x)));S.sessions.forEach(x=>snap.sessions[x.id]=j(rowSess(x)));
  if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
@@ -93,6 +93,7 @@ const act=S.clients.filter(c=>c.active!==false).length;
 return`<div class="hero"><img src="logo.png" alt="RRG Personal Trainer"></div><h2>Hola, ${esc(S.settings.name||'')} 💪</h2>
 <div class="stats"><div class="card"><div class="big">${act}</div><div class="mut">clientes activos</div></div><div class="card"><div class="big">${ts.length}</div><div class="mut">sesiones hoy</div></div><div class="card"><div class="big">${low.length}</div><div class="mut">bonos por acabar</div></div></div>
 <h3>Sesiones de hoy</h3>${ts.length?ts.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}</div></div><button class="btn sm" onclick="doneS('${s.id}')">Hecha ✓</button></div>`}).join(''):'<div class="empty">Nada para hoy. Añade sesiones en Agenda.</div>'}
+<button class="btn" style="width:100%;margin:8px 0" onclick="go('#/resumen')">Resumen del mes</button>
 <h3>Llevan días sin contacto</h3>${cold.length?cold.map(c=>`<div class="card click row" onclick="go('#/cliente/${c.id}')"><div><b>${esc(c.name)}</b><div class="mut">${daysAgo(c.lastContact||c.created)} días</div></div>${c.phone?`<a class="btn wa sm" onclick="event.stopPropagation();contacted('${c.id}')" href="https://wa.me/${waNum(c.phone)}" target="_blank">WhatsApp</a>`:''}</div>`).join(''):'<div class="empty">Todos al día 👌</div>'}
 <h3>Bonos a punto de acabarse</h3>${low.length?low.map(c=>`<div class="card click" onclick="go('#/cliente/${c.id}')"><b>${esc(c.name)}</b>${bonoBar(c)}</div>`).join(''):'<div class="empty">Ninguno</div>'}`}
 const waNum=p=>{p=String(p).replace(/[^\d]/g,'');return p.length===9?'34'+p:p};
@@ -115,6 +116,7 @@ return`<button class="btn ghost sm" onclick="go('#/clientes')">← Clientes</but
 <label>Objetivo</label><textarea id="f_goal" rows="4" placeholder="Objetivo del cliente. Es el texto de la primera página del PDF (puedes escribir varios párrafos; si lo dejas vacío sale el texto estándar).">${esc(c.goal||'')}</textarea>
 <label>Lesiones / notas médicas</label><textarea id="f_inj" rows="2">${esc(c.injuries||'')}</textarea>
 <div class="g2"><div><label>Bono: sesiones totales</label><input id="f_bt" type="number" min="0" value="${c.bono.total||0}"></div><div><label>Sesiones usadas</label><input id="f_bu" type="number" min="0" value="${c.bono.used||0}"></div></div>
+<div class="g2"><div><label>Precio por sesión (€)</label><input id="f_pr" type="number" min="0" step="0.5" inputmode="decimal" placeholder="Ej: 35" value="${c.price&&c.price.amt!=null?c.price.amt:''}"></div><div><label>IVA</label><select id="f_pi"><option value="sin" ${!c.price||c.price.iva!=='mas'?'selected':''}>Sin IVA</option><option value="mas" ${c.price&&c.price.iva==='mas'?'selected':''}>+ IVA</option></select></div></div>
 <label><input type="checkbox" id="f_act" style="width:auto" ${c.active!==false?'checked':''}> Cliente activo</label><br><label>Asesoramiento nutricional</label><select id="f_nut"><option value="" ${!c.nut?'selected':''}>Ninguno</option><option value="1m" ${c.nut==='1m'?'selected':''}>Dieta de 1 mes (sin seguimiento)</option><option value="3m" ${c.nut==='3m'?'selected':''}>Seguimiento nutricional trimestral (el cliente anota su peso y medidas)</option></select><br>
 <button class="btn" onclick="saveC(${nw})">Guardar</button> ${nw?'':`<button class="btn del" onclick="delC('${c.id}')">Borrar</button>`}</div>
 ${nw?'':`
@@ -129,7 +131,7 @@ ${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div cl
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
 <h3>Dietas</h3><div id="dietas"><div class="empty">Cargando…</div></div>
 ${accesoCard(c)}`}`+(nw?'':(setTimeout(()=>{loadDiets(c.id);loadWL(c)},0),''))}
-function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;c.nut=$('#f_nut').value;c.tracking=c.nut==='3m';if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
+function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;c.nut=$('#f_nut').value;{const v=$('#f_pr').value;c.price=v===''?null:{amt:+v,iva:$('#f_pi').value}}c.tracking=c.nut==='3m';if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
 function delC(id){if(!confirm('¿Borrar este cliente y sus datos?'))return;S.clients=S.clients.filter(c=>c.id!==id);S.sessions=S.sessions.filter(s=>s.clientId!==id);save();go('#/clientes')}
 function addM(){const c=window._c;const w=$('#m_w').value,k=$('#m_c').value;if(!w&&!k)return;c.measures.push({d:today(),w:w?+w:null,c:k?+k:null});save();render()}
 function addN(){const t=$('#n_t').value.trim();if(!t)return;const c=window._c;c.logs=c.logs||[];c.logs.unshift({d:today(),t});c.lastContact=today();save();render()}
@@ -195,12 +197,13 @@ for(let d=1;d<=dim;d++){const k=CAL.y+'-'+pad(CAL.m+1)+'-'+pad(d);const c=cnt[k]
 const ds=S.sessions.filter(x=>x.dt.slice(0,10)===CAL.sel).sort((a,b)=>a.dt.localeCompare(b.dt));
 const sd=new Date(CAL.sel+'T12:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
 const def=CAL.sel+'T'+(CAL.sel===td?pad(Math.min(23,n.getHours()+1))+':00':'10:00');
-const sr=s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${s.dt.slice(11,16)} · ${esc(c?c.name:'?')}</b><div class="mut">${esc(s.service)}${s.done?' · hecha':''}</div></div><div>${s.done?'':`<button class="btn sm" onclick="doneS('${s.id}')">✓</button> `}<button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`};
-return`<h2>Agenda</h2><div class="card"><div class="row"><button class="btn ghost sm" onclick="calGo(-1)">‹</button><b>${mn[0].toUpperCase()+mn.slice(1)}</b><button class="btn ghost sm" onclick="calGo(1)">›</button></div><div class="cal">${cells}</div><button class="btn ghost sm" style="margin-top:8px" onclick="calToday()">Hoy</button></div>
+const sr=s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${s.dt.slice(11,16)} · ${esc(c?c.name:'?')}</b><div class="mut">${esc(s.service)}${s.done?' · hecha':''}${otTag(s)}</div></div><div>${(c&&c.origin==='vivofacil')?`<button class="btn ghost sm" onclick="editOT('${s.id}')">OT</button> `:''}${s.done?'':`<button class="btn sm" onclick="doneS('${s.id}')">✓</button> `}<button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`};
+setTimeout(otToggle,0);return`<h2>Agenda</h2><div class="card"><div class="row"><button class="btn ghost sm" onclick="calGo(-1)">‹</button><b>${mn[0].toUpperCase()+mn.slice(1)}</b><button class="btn ghost sm" onclick="calGo(1)">›</button></div><div class="cal">${cells}</div><button class="btn ghost sm" style="margin-top:8px" onclick="calToday()">Hoy</button></div>
 <h3>${sd[0].toUpperCase()+sd.slice(1)}</h3>${ds.map(sr).join('')||'<div class="empty">Nada este día</div>'}
-<div class="card"><label>Añadir sesión</label><select id="a_c">${S.clients.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">(crea un cliente antes)</option>'}</select>
+<div class="card"><label>Añadir sesión</label><select id="a_c" onchange="otToggle()">${S.clients.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">(crea un cliente antes)</option>'}</select>
+<div id="a_otw" style="display:none"><label>OT de la sesión (Vivofácil, solo números)</label><input id="a_ot" inputmode="numeric" pattern="[0-9]*" placeholder="Ej: 123456"></div>
 <div class="g2"><div><label>Fecha y hora</label><input id="a_d" type="datetime-local" value="${def}"></div><div><label>Servicio</label><select id="a_s">${SERV.map(s=>`<option>${s}</option>`).join('')}</select></div></div><button class="btn" onclick="addS()">Añadir sesión</button></div>
-<h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}</div></div><div><button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
+<h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}${otTag(s)}</div></div><div>${(c&&c.origin==='vivofacil')?`<button class="btn ghost sm" onclick="editOT('${s.id}')">OT</button> `:''}<button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
 
 const IMG='https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/';
 let EXQ='',EXM='',EXN=60;
@@ -221,7 +224,7 @@ function vEjerDet(id){loadEX();if(!window.EX)return'<div class="empty">Cargando�
 return`<button class="btn ghost sm" onclick="history.back()">‹ Volver</button><h2 style="margin-top:12px">${esc(r[1])}</h2><div class="mut">${esc(r[2])}</div>
 <div class="exan card"><img src="${IMG}${r[6]}" alt="${esc(r[1])}, posición inicial"><img class="b" src="${IMG}${r[7]}" alt="${esc(r[1])}, posición final"></div>
 <div class="card"><span class="tag red">${esc(r[3].join(', '))}</span><span class="tag">${esc(r[4])}</span><span class="tag">${esc(r[5])}</span></div>`}
-function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
+function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');const cc=cl(c);let ot='';if(cc&&cc.origin==='vivofacil'){ot=($('#a_ot').value||'').trim();if(ot&&!/^\d{1,20}$/.test(ot))return toast('La OT solo lleva números')}S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false,ot});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
 function delS(id){S.sessions=S.sessions.filter(s=>s.id!==id);save();render()}
 function accesoCard(c){
  if(c.user_id)return`<h3>Acceso a la app</h3><div class="card"><div>✅ Tiene acceso con <b>${esc(c.email||'su email')}</b></div><div class="mut">${c.consent_at?'Ha aceptado la política de privacidad el '+new Date(c.consent_at).toLocaleDateString('es-ES'):'Aún no ha aceptado la política de privacidad (la verá al entrar).'}</div><div class="mut">Si olvida la contraseña, puede pedir una nueva con "¿Olvidaste tu contraseña?" en la pantalla de entrada.</div><br>
@@ -293,12 +296,12 @@ $('#nav').style.display=trainer&&p!=='privacidad'?'flex':'none';
 if(!trainer)$('#sub').textContent=ME?'Tu entrenamiento':'';
 const sec=p===''?'':(p==='cliente'?'clientes':p==='rutina'?'rutinas':p==='ejercicio'?'ejercicios':p);
 $('#nav').innerHTML=nav.map(n=>`<button class="${sec===n[0]?'on':''}" onclick="go('#/${n[0]}')"><b>${n[1]}</b>${n[2]}</button>`).join('');
-let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='seguimiento')v=vSeg();else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ejercicios')v=vEjer();else if(p==='ejercicio')v=vEjerDet(a);else if(p==='ajustes')v=vAjustes();else v=vInicio();
+let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='seguimiento')v=vSeg();else if(p==='resumen')v=vResumen();else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ejercicios')v=vEjer();else if(p==='ejercicio')v=vEjerDet(a);else if(p==='ajustes')v=vAjustes();else v=vInicio();
 $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0,0)}
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-2000';
+const APPV='20261125-2030';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
@@ -344,3 +347,28 @@ async function loadSeg(){const el=$('#seg');if(!el)return;const cs=S.clients.fil
  return`<div class="card click" onclick="go('#/cliente/${c.id}')"><div class="row"><b>${esc(c.name)}</b><span class="tag${days==null||days>14?' red':''}">${last?(days===0?'hoy':'hace '+days+' d'):'sin registros'}</span></div><div class="mut">${L.length} registros${W.length?` · último peso ${W[W.length-1].weight} kg (${dd(W[W.length-1].d)})`:''}${ch!=null?` · ${ch>0?'+':''}${ch.toFixed(1)} kg desde el primero`:''}${last&&last.waist!=null?` · cintura ${last.waist} cm`:''}</div></div>`}).join('')||'<div class="empty">Ningún cliente tiene seguimiento nutricional trimestral. Se activa en su ficha.</div>'}
 
 function dupR(id){const src=id?S.routines.find(x=>x.id===id):window._r;if(!src)return;const n=JSON.parse(JSON.stringify(src));n.id=uid();n.name=(src.name||'Rutina').replace(/ \(copia( \d+)?\)$/,'')+' (copia)';S.routines.push(n);save();toast('Duplicada. Edita lo que cambie');go('#/rutina/'+n.id)}
+
+// ---- OT y resumen mensual
+const otTag=s=>{const c=cl(s.clientId);return c&&c.origin==='vivofacil'?(s.ot?' · OT '+esc(s.ot):' · <span style="color:#e8731a">sin OT</span>'):''};
+function otToggle(){const sel=$('#a_c'),w=$('#a_otw');if(!sel||!w)return;const c=cl(sel.value);w.style.display=c&&c.origin==='vivofacil'?'block':'none'}
+function editOT(id){const s=S.sessions.find(x=>x.id===id);if(!s)return;const v=prompt('OT de esta sesión (solo números)',s.ot||'');if(v===null)return;const t=v.trim();if(t&&!/^\d{1,20}$/.test(t))return toast('La OT solo lleva números');s.ot=t;save();render(true)}
+const eur=n=>n.toFixed(2).replace('.',',')+' €';
+function rmSet(m){window._rm=m;render()}
+function rmShift(d){const [y,m]=(window._rm||today().slice(0,7)).split('-').map(Number);const dt=new Date(y,m-1+d,1);rmSet(dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'))}
+function rmCalc(m){const ss=S.sessions.filter(s=>s.done&&s.dt.slice(0,7)===m).sort((a,b)=>a.dt.localeCompare(b.dt));const own={},viv=[];let tot=0,nop=0,own_n=0;
+ ss.forEach(s=>{const c=cl(s.clientId);if(!c)return;if(c.origin==='vivofacil'){viv.push({s,c});return}own_n++;const o=own[c.id]||(own[c.id]={c,n:0});o.n++;if(c.price&&c.price.amt!=null)tot+=c.price.amt;else nop++});
+ return{own:Object.values(own).sort((a,b)=>a.c.name.localeCompare(b.c.name)),viv,tot,nop,own_n}}
+function vResumen(){const m=window._rm||(window._rm=today().slice(0,7));const r=rmCalc(m);const [y,mo]=m.split('-').map(Number);const nm=new Date(y,mo-1,1).toLocaleString('es-ES',{month:'long',year:'numeric'});
+ const hist=[];for(let i=0;i<12;i++){const d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const x=rmCalc(k);if(x.own_n||x.viv.length||k===m)hist.push([k,d,x])}
+ return`<button class="btn ghost sm" onclick="go('#/')">← Inicio</button><h2>Resumen del mes</h2>
+<div class="card"><div class="row"><button class="btn ghost sm" onclick="rmShift(-1)">‹</button><b>${nm[0].toUpperCase()+nm.slice(1)}</b><button class="btn ghost sm" onclick="rmShift(1)">›</button></div><div class="mut" style="margin-top:6px">Cuenta solo las sesiones marcadas como hechas. Importes sin IVA.</div></div>
+<h3>Clientes propios</h3><div class="card"><div class="big">${eur(r.tot)}</div><div class="mut">${r.own_n} sesiones · sin IVA${r.nop?' · '+r.nop+' sesiones de clientes sin precio puesto':''}</div>
+${r.own.map(o=>`<div class="ex row"><span>${esc(o.c.name)} <span class="mut">· ${o.n} ses.</span></span><span>${o.c.price&&o.c.price.amt!=null?eur(o.n*o.c.price.amt)+(o.c.price.iva==='mas'?' <span class="mut">+IVA</span>':''):'<span style="color:#e8731a">sin precio</span>'}</span></div>`).join('')||'<div class="empty" style="padding:10px">Sin sesiones hechas este mes</div>'}</div>
+<h3>Vivofácil</h3><div class="card"><div class="mut">${r.viv.length} sesiones${r.viv.some(x=>!x.s.ot)?' · <span style="color:#e8731a">'+r.viv.filter(x=>!x.s.ot).length+' sin OT</span>':''}</div>
+${r.viv.map(x=>`<div class="ex row"><span>${new Date(x.s.dt.slice(0,10)+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'numeric'})} · ${esc(x.c.name)} <span class="mut">${esc(x.s.service||'')}</span></span><span>${x.s.ot?'OT '+esc(x.s.ot):'<span style="color:#e8731a">sin OT</span>'}</span></div>`).join('')||'<div class="empty" style="padding:10px">Sin sesiones hechas este mes</div>'}</div>
+<button class="btn" onclick="rmCsv('${m}')">Descargar Excel (CSV) de este mes</button>
+<h3>Mes a mes</h3><div class="card">${hist.map(([k,d,x])=>`<div class="ex row click" onclick="rmSet('${k}')"><span>${d.toLocaleString('es-ES',{month:'long',year:'numeric'})}</span><span class="mut">${eur(x.tot)} · ${x.own_n} propias · ${x.viv.length} Vivofácil</span></div>`).join('')}</div>`}
+function rmCsv(m){const r=rmCalc(m);const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const L=[['Origen','Fecha','Cliente','Servicio','OT','Precio sin IVA']];
+ S.sessions.filter(s=>s.done&&s.dt.slice(0,7)===m).sort((a,b)=>a.dt.localeCompare(b.dt)).forEach(s=>{const c=cl(s.clientId);if(!c)return;const viv=c.origin==='vivofacil';L.push([viv?'Vivofácil':'Propio',s.dt.slice(0,10),c.name,s.service||'',viv?(s.ot||''):'',viv?'':(c.price&&c.price.amt!=null?String(c.price.amt).replace('.',','):'')])});
+ L.push([]);L.push(['Total propios sin IVA','','','','',String(r.tot.toFixed(2)).replace('.',',')]);
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.map(x=>x.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download='resumen-'+m+'.csv';a.click()}
