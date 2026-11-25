@@ -36,3 +36,4 @@ svg.chart{width:100%;height:120px;background:#0f0f11;border-radius:10px}
 .exan{position:relative;padding:0;overflow:hidden;aspect-ratio:1/1;max-width:420px;margin:12px auto;background:#fff}.exan img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .exan img.b{animation:exf 1.4s ease-in-out infinite}@keyframes exf{0%,35%{opacity:0}50%,85%{opacity:1}100%{opacity:0}}
 nav button{font-size:10px;padding:10px 0}
+.exl{color:var(--tx);cursor:pointer;text-decoration:underline;text-decoration-color:var(--red)}
