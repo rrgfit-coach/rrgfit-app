@@ -112,7 +112,7 @@ const nxt=S.sessions.filter(s=>s.clientId===c.id&&!s.done&&s.dt>=new Date().toIS
 return`<button class="btn ghost sm" onclick="go('#/clientes')">← Clientes</button><h2>${nw?'Nuevo cliente':esc(c.name)}</h2>
 <div class="card"><label>Nombre</label><input id="f_name" value="${esc(c.name)}">
 <div class="g2"><div><label>Teléfono (WhatsApp)</label><input id="f_phone" inputmode="tel" value="${esc(c.phone||'')}"></div><div><label>Origen</label><select id="f_origin"><option value="propio" ${c.origin!=='vivofacil'?'selected':''}>Propio</option><option value="vivofacil" ${c.origin==='vivofacil'?'selected':''}>Vivofácil</option></select></div></div>
-<label>Objetivo</label><input id="f_goal" value="${esc(c.goal||'')}" placeholder="Perder grasa, ganar fuerza…">
+<label>Objetivo</label><textarea id="f_goal" rows="4" placeholder="Objetivo del cliente. Es el texto de la primera página del PDF (puedes escribir varios párrafos; si lo dejas vacío sale el texto estándar).">${esc(c.goal||'')}</textarea>
 <label>Lesiones / notas médicas</label><textarea id="f_inj" rows="2">${esc(c.injuries||'')}</textarea>
 <div class="g2"><div><label>Bono: sesiones totales</label><input id="f_bt" type="number" min="0" value="${c.bono.total||0}"></div><div><label>Sesiones usadas</label><input id="f_bu" type="number" min="0" value="${c.bono.used||0}"></div></div>
 <label><input type="checkbox" id="f_act" style="width:auto" ${c.active!==false?'checked':''}> Cliente activo</label><br><label><input type="checkbox" id="f_trk" style="width:auto" ${c.tracking?'checked':''}> Con registros (seguimiento de peso y medidas, para clientes de dieta)</label><br><br>
@@ -144,6 +144,7 @@ return`<button class="btn ghost sm" onclick="go('#/rutinas')">← Rutinas</butto
 <label>O escribe uno propio</label><input id="ex_n" placeholder="Nombre del ejercicio"><button class="btn sm" onclick="addEx()">Añadir</button></div>
 <button class="btn" onclick="saveR()">Guardar rutina</button> ${window._rn?'':`<button class="btn del" onclick="delR()">Borrar</button>`}`}
 function rerender(){$('#app').innerHTML=rutinaForm()}
+const DEFOBJ='El objetivo principal es mejorar la fuerza y desarrollar la masa muscular, manteniendo un estilo de vida activo y saludable mediante un programa de entrenamiento personalizado, adaptado a su nivel y condición física actual.\nEl programa estará orientado a fortalecer de forma equilibrada todos los grupos musculares, mejorar la movilidad y la condición física general, priorizando una correcta ejecución de los ejercicios y una progresión gradual de las cargas para favorecer el bienestar físico y una mejora continua del rendimiento.';
 const OBS=['<u>Prioriza siempre la técnica antes que el peso.</u> Es preferible utilizar menos carga y realizar correctamente el ejercicio que levantar más peso con una técnica inadecuada.','Si aparece <u>dolor intenso, agudo o inusual</u> durante algún ejercicio, <u>detente inmediatamente</u>. No fuerces ningún movimiento que provoque molestias importantes.','Realiza los ejercicios de forma <u>controlada</u>, evitando movimientos bruscos y respetando los tiempos de descanso indicados.'];
 function pdfR(i){const trainer=ROLE==='trainer';const c=trainer?window._c:MYC;const rs=trainer?c.routines:((MYC&&MYC.data&&MYC.data.routines)||[]);let r=rs[i];if(i==='all'){let off=0;r={items:[]};rs.forEach(x=>{let m=0;x.items.forEach(e=>{const d=(e.d||1)+off;m=Math.max(m,e.d||1);r.items.push({...e,d})});off+=m})}if(!r)return;
 const goal=trainer?(c.goal||''):((MYC.data&&MYC.data.goal)||'');
@@ -156,8 +157,7 @@ const old=$('#pv');if(old)old.remove();const d=document.createElement('div');d.i
 d.innerHTML=`<div class="pvbar"><button class="btn" onclick="window.print()">Imprimir / Guardar PDF</button> <button class="btn ghost" onclick="pvClose()">Cerrar</button></div>
 <div class="pvdoc"><table class="pvw"><thead><tr><td class="pvhead">RRG FIT &nbsp;•&nbsp; PLAN DE ENTRENAMIENTO</td></tr></thead><tfoot><tr><td class="pvfoot">@rrg_fit &nbsp;|&nbsp; rrgfit.es &nbsp;|&nbsp; ENTRENAMIENTO PERSONALIZADO</td></tr></tfoot><tbody><tr><td><div class="pvp"><div class="pvtop"><img src="logo.png" alt=""><h1>PLAN DE ENTRENAMIENTO</h1></div>
 <p class="pvcl"><b>CLIENTE:</b> <u>${esc(c.name||'')}</u> &nbsp;&nbsp;&nbsp; <b>FECHA:</b> <u>${new Date().toLocaleDateString('es-ES')}</u></p>
-<h4>OBJETIVO:</h4><p>${esc(goal||'Mejorar la condición física y la salud mediante un programa de entrenamiento personalizado, adaptado a tu nivel y condición física actual.')}</p>
-<p>El programa estará orientado a fortalecer de forma equilibrada todos los grupos musculares, mejorar la movilidad y la condición física general, priorizando una correcta ejecución de los ejercicios y una progresión gradual de las cargas para favorecer el bienestar físico y una mejora continua del rendimiento.</p>
+<h4>OBJETIVO:</h4>${(goal.trim()||DEFOBJ).split(/\n+/).filter(x=>x.trim()).map(x=>`<p>${esc(x)}</p>`).join('')}
 <h4>CALENTAMIENTO ANTES DE CADA ENTRENAMIENTO:</h4><p>Realizar entre 5 y 10 minutos de movilidad articular general antes de comenzar el entrenamiento, preparando progresivamente el cuerpo para los ejercicios.</p><p>Si lo necesitas, puedes pedirme un vídeo del calentamiento general que suelo realizar y te lo enviaré sin problema.</p>
 <h4>OBSERVACIONES:</h4><ul>${OBS.map(x=>`<li>${x}</li>`).join('')}</ul></div>
 <div class="pvp">${tabs}</div>
@@ -295,7 +295,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1800';
+const APPV='20261125-1810';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
