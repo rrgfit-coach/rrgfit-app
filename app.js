@@ -15,12 +15,12 @@ function dmSet(k,key,v){window._r.items.forEach(e=>{if((e.d||1)===k){if(key==='t
 function newItem(o){const k=window._rd||1;const m=dmeta(window._r.items,k);return Object.assign({d:k,s:3,r:'10',rest:'',load:'',note:''},m.t?{dn:m.t}:{},m.sm?{sm:true}:{},o)}
 const EXS={Boxeo:['Sombra 3x3 min','Jab-cruzado en saco','Trabajo de manoplas','Defensa y esquivas','Combinaciones al saco'],'Muay Thai':['Patada baja','Rodillazos en saco','Clinch','Patada frontal (teep)','Manoplas thai'],K1:['Combinaciones K1','Patadas altas','Guardia y desplazamientos','Saco 5x3 min'],Funcional:['Burpees','Kettlebell swing','Plancha','Zancadas','Remo con banda','Saltos al cajón'],Fuerza:['Sentadilla','Peso muerto rumano','Hip thrust','Press de banca','Dominadas asistidas','Press militar','Puente de glúteo'],Movilidad:['Movilidad de cadera','Movilidad de hombros','Gato-camello']};
 const SEED=[['Boxeo iniciación','Boxeo',['Sombra 3x3 min','Jab-cruzado en saco','Defensa y esquivas']],['Muay Thai base','Muay Thai',['Patada baja','Rodillazos en saco','Patada frontal (teep)']],['Funcional cuerpo completo','Funcional',['Burpees','Kettlebell swing','Zancadas','Plancha']],['Fuerza GAP','Fuerza / GAP',['Hip thrust','Sentadilla','Peso muerto rumano','Puente de glúteo']],['Movilidad suave','Movilidad',['Movilidad de cadera','Movilidad de hombros','Gato-camello']]];
-let MYD=[];let S={settings:{},clients:[],sessions:[],routines:[]};
+let MYD=[],MYW=[];let S={settings:{},clients:[],sessions:[],routines:[]};
 let ME=null,ROLE=null,MYC=null,MYS=[],AUTHVIEW='login',RECOVERY=false;
 // ---- sincronización con la nube (entrenadora)
 let snap={clients:{},priv:{},routines:{},sessions:{},settings:''},dirty=false,saving=false,timer=null;
 const j=o=>JSON.stringify(o);
-const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
+const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,nut:c.nut||(c.tracking?'3m':''),routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
 const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[]}});
 const rowRoutine=r=>({id:r.id,name:r.name,cat:r.cat||null,items:r.items||[]});
 const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done});
@@ -46,7 +46,7 @@ async function loadTrainer(){
  for(const r of[a,b,c,d,t])if(r.error)throw r.error;
  const pv={};b.data.forEach(p=>pv[p.client_id]=p.data||{});
  S.settings=t.data.settings||{};
- S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
+ S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,nut:x.nut||(x.tracking?'3m':''),routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
  S.routines=c.data.map(r=>({id:r.id,name:r.name,cat:r.cat,items:r.items||[]}));
  S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done}));
  snap={clients:{},priv:{},routines:{},sessions:{},settings:j(S.settings)};
@@ -54,8 +54,8 @@ async function loadTrainer(){
  if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
 }
 async function loadClient(){
- const[a,b,dd]=await Promise.all([sb.from('clients').select('*').eq('user_id',ME.id).maybeSingle(),sb.from('sessions').select('*'),sb.from('diets').select('id,title,d,body,file_name').order('d',{ascending:false})]);
- if(a.error)throw a.error;MYC=a.data;MYS=(b.data||[]);MYD=(dd.data||[]);
+ const[a,b,dd,ww]=await Promise.all([sb.from('clients').select('*').eq('user_id',ME.id).maybeSingle(),sb.from('sessions').select('*'),sb.from('diets').select('id,title,d,body,file_name').order('d',{ascending:false}),sb.from('weight_logs').select('*').order('d',{ascending:false})]);
+ if(a.error)throw a.error;MYC=a.data;MYS=(b.data||[]);MYD=(dd.data||[]);MYW=(ww.data||[]);
 }
 async function boot(){
  const{data}=await sb.auth.getSession();
@@ -101,7 +101,7 @@ function doneS(id){const s=S.sessions.find(x=>x.id===id);s.done=true;const c=cl(
 
 function vClientes(){let l=S.clients.filter(c=>(filt==='todos'||(filt==='activos'&&c.active!==false)||(filt==='vivofacil'&&c.origin==='vivofacil')||(filt==='propio'&&c.origin!=='vivofacil'))&&c.name.toLowerCase().includes(q.toLowerCase()));
 return`<h2>Clientes</h2><input id="q" placeholder="Buscar cliente…" value="${esc(q)}" oninput="q=this.value;renderKeep()">
-<div class="chips">${['todos','activos','vivofacil','propio'].map(f=>`<button class="chip ${filt===f?'on':''}" onclick="filt='${f}';render()">${f==='vivofacil'?'Vivofácil':f[0].toUpperCase()+f.slice(1)}</button>`).join('')}</div>
+${S.clients.some(c=>c.tracking)?'<button class="btn ghost sm" onclick="go(\'#/seguimiento\')">Ver seguimiento nutricional</button>':''}<div class="chips">${['todos','activos','vivofacil','propio'].map(f=>`<button class="chip ${filt===f?'on':''}" onclick="filt='${f}';render()">${f==='vivofacil'?'Vivofácil':f[0].toUpperCase()+f.slice(1)}</button>`).join('')}</div>
 ${l.length?l.map(c=>`<div class="card click" onclick="go('#/cliente/${c.id}')"><div class="row"><b>${esc(c.name)}</b><span>${c.origin==='vivofacil'?'<span class="tag red">Vivofácil</span>':''}${c.active===false?'<span class="tag">inactivo</span>':''}</span></div><div class="mut">${esc(c.goal||'Sin objetivo')}</div>${bonoBar(c)}</div>`).join(''):'<div class="empty">Aún no hay clientes. Pulsa + para añadir el primero.</div>'}
 <button class="btn fab" onclick="go('#/cliente/nuevo')">+</button>`}
 function renderKeep(){const p=$('#q').selectionStart;render();const e=$('#q');e.focus();e.setSelectionRange(p,p)}
@@ -115,20 +115,21 @@ return`<button class="btn ghost sm" onclick="go('#/clientes')">← Clientes</but
 <label>Objetivo</label><textarea id="f_goal" rows="4" placeholder="Objetivo del cliente. Es el texto de la primera página del PDF (puedes escribir varios párrafos; si lo dejas vacío sale el texto estándar).">${esc(c.goal||'')}</textarea>
 <label>Lesiones / notas médicas</label><textarea id="f_inj" rows="2">${esc(c.injuries||'')}</textarea>
 <div class="g2"><div><label>Bono: sesiones totales</label><input id="f_bt" type="number" min="0" value="${c.bono.total||0}"></div><div><label>Sesiones usadas</label><input id="f_bu" type="number" min="0" value="${c.bono.used||0}"></div></div>
-<label><input type="checkbox" id="f_act" style="width:auto" ${c.active!==false?'checked':''}> Cliente activo</label><br><label><input type="checkbox" id="f_trk" style="width:auto" ${c.tracking?'checked':''}> Con registros (seguimiento de peso y medidas, para clientes de dieta)</label><br><br>
+<label><input type="checkbox" id="f_act" style="width:auto" ${c.active!==false?'checked':''}> Cliente activo</label><br><label>Asesoramiento nutricional</label><select id="f_nut"><option value="" ${!c.nut?'selected':''}>Ninguno</option><option value="1m" ${c.nut==='1m'?'selected':''}>Dieta de 1 mes (sin seguimiento)</option><option value="3m" ${c.nut==='3m'?'selected':''}>Seguimiento nutricional trimestral (el cliente anota su peso y medidas)</option></select><br>
 <button class="btn" onclick="saveC(${nw})">Guardar</button> ${nw?'':`<button class="btn del" onclick="delC('${c.id}')">Borrar</button>`}</div>
 ${nw?'':`
-${c.tracking?`<h3>Progreso</h3><div class="card">${chart([...c.measures].sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}
+${c.tracking?`<h3>Seguimiento nutricional</h3><div class="card"><div id="wchart">${chart([...c.measures].sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>
 <div class="g2" style="margin-top:8px"><div><label>Peso (kg)</label><input id="m_w" type="number" step="0.1"></div><div><label>Cintura (cm)</label><input id="m_c" type="number" step="0.5"></div></div>
 <button class="btn sm" onclick="addM()">Añadir registro</button>
 ${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div class="ex mut">${m.d}: ${m.w||'–'} kg · cintura ${m.c||'–'} cm</div>`).join('')}</div>`:''}
+${c.tracking?'<div id="wlogs"></div>':''}
 <h3>Rutinas asignadas</h3>${c.routines.length>1?'<button class="btn ghost sm" onclick="pdfR(\'all\')">PDF con todas las rutinas juntas</button>':''}${c.routines.map((r,i)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><span><button class="btn ghost sm" onclick="pdfR(${i})">PDF</button> <button class="btn del sm" onclick="unassign(${i})">Quitar</button></span></div>${r.items.map(e=>`<div class="ex">${exLink(e)} <span class="mut">· ${e.s}x${esc(e.r)} ${esc(e.note||'')}</span></div>`).join('')}</div>`).join('')||'<div class="empty">Sin rutinas</div>'}
 <div class="card"><label>Asignar rutina</label><select id="as">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><button class="btn sm" onclick="assign()">Asignar</button></div>
 <h3>Notas de sesión</h3><div class="card"><textarea id="n_t" rows="2" placeholder="Cómo fue la sesión…"></textarea><button class="btn sm" onclick="addN()">Guardar nota</button>
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
 <h3>Dietas</h3><div id="dietas"><div class="empty">Cargando…</div></div>
-${accesoCard(c)}`}`+(nw?'':(setTimeout(()=>loadDiets(c.id),0),''))}
-function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;c.tracking=$('#f_trk').checked;if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
+${accesoCard(c)}`}`+(nw?'':(setTimeout(()=>{loadDiets(c.id);if(c.tracking)loadWL(c)},0),''))}
+function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;c.nut=$('#f_nut').value;c.tracking=c.nut==='3m';if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
 function delC(id){if(!confirm('¿Borrar este cliente y sus datos?'))return;S.clients=S.clients.filter(c=>c.id!==id);S.sessions=S.sessions.filter(s=>s.clientId!==id);save();go('#/clientes')}
 function addM(){const c=window._c;const w=$('#m_w').value,k=$('#m_c').value;if(!w&&!k)return;c.measures.push({d:today(),w:w?+w:null,c:k?+k:null});save();render()}
 function addN(){const t=$('#n_t').value.trim();if(!t)return;const c=window._c;c.logs=c.logs||[];c.logs.unshift({d:today(),t});c.lastContact=today();save();render()}
@@ -281,7 +282,7 @@ ${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.m
 <h3>Tu calendario</h3>${calClient()}
 <h3>Tus rutinas</h3>${(d.routines||[]).length>1?'<button class="btn sm" onclick="pdfR(\'all\')">PDF con todas las rutinas juntas</button>':''}${(d.routines||[]).map((r,ri)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn ghost sm" onclick="pdfR(${ri})">PDF / imprimir</button></div>${r.items.map(e=>`<div class="ex">${exLink(e)}<div class="mut">${(e.d>1||e.dn)?'Día '+(e.d||1)+(e.dn?' ('+esc(e.dn)+')':'')+' · ':''}${e.s} series x ${esc(e.r)}${e.rest?' · descanso '+esc(e.rest):''}${e.load&&e.load!=='-'?' · '+esc(e.load):''} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
 ${MYD.length?`<h3>Mi dieta</h3>${MYD.map(x=>`<div class="card"><div class="row"><b>${esc(x.title)}</b><span class="mut">${new Date(x.d+'T12:00').toLocaleDateString('es-ES')}</span></div>${x.body?`<div style="white-space:pre-wrap;margin-top:6px">${esc(x.body)}</div>`:''}${x.file_name?`<button class="btn sm" style="margin-top:8px" onclick="openDiet('${x.id}')">Ver / descargar PDF</button>`:''}</div>`).join('')}`:''}
-${d.tracking?`<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>`:''}
+${d.tracking?`<h3>Tu seguimiento</h3><div class="card"><div class="mut">Anota tu peso y tu cintura cuando te lo pida tu entrenadora.</div>${chart(mergeM(d.measures,MYW).filter(m=>m.w),'w','kg')}<div class="g2" style="margin-top:8px"><div><label>Peso (kg)</label><input id="w_w" type="number" step="0.1" inputmode="decimal"></div><div><label>Cintura (cm)</label><input id="w_c" type="number" step="0.5" inputmode="decimal"></div></div><label>Fecha</label><input id="w_d" type="date" value="${today()}"><br><br><button class="btn sm" onclick="addWL()">Guardar registro</button>${MYW.slice(0,8).map(m=>`<div class="ex mut">${new Date(m.d+'T12:00').toLocaleDateString('es-ES')}: ${m.weight??'–'} kg · cintura ${m.waist??'–'} cm <a onclick="delWL('${m.id}')" style="color:#e8731a;cursor:pointer">borrar</a></div>`).join('')}</div>`:''}
 ${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
 <p><button class="btn ghost sm" onclick="dlMine()">Descargar mis datos</button> <a class="btn ghost sm" href="#/privacidad">Privacidad</a> <button class="btn ghost sm" onclick="logout()">Salir</button></p>`}
 function dlMine(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({cliente:MYC,sesiones:MYS},null,1)],{type:'application/json'}));a.download='mis-datos-rrgfit.json';a.click()}
@@ -292,12 +293,12 @@ $('#nav').style.display=trainer&&p!=='privacidad'?'flex':'none';
 if(!trainer)$('#sub').textContent=ME?'Tu entrenamiento':'';
 const sec=p===''?'':(p==='cliente'?'clientes':p==='rutina'?'rutinas':p==='ejercicio'?'ejercicios':p);
 $('#nav').innerHTML=nav.map(n=>`<button class="${sec===n[0]?'on':''}" onclick="go('#/${n[0]}')"><b>${n[1]}</b>${n[2]}</button>`).join('');
-let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ejercicios')v=vEjer();else if(p==='ejercicio')v=vEjerDet(a);else if(p==='ajustes')v=vAjustes();else v=vInicio();
+let v;if(p==='privacidad')v=vPolicy();else if(!ME||RECOVERY)v=vLogin();else if(ROLE==='client')v=vCliente();else if(ROLE!=='trainer')v='<div class="empty">Cargando…</div>';else if(p==='clientes')v=vClientes();else if(p==='cliente')v=vFicha(a);else if(p==='seguimiento')v=vSeg();else if(p==='rutinas')v=vRutinas();else if(p==='rutina')v=vRutina(a);else if(p==='agenda')v=vAgenda();else if(p==='ejercicios')v=vEjer();else if(p==='ejercicio')v=vEjerDet(a);else if(p==='ajustes')v=vAjustes();else v=vInicio();
 $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0,0)}
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1830';
+const APPV='20261125-1850';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
@@ -312,3 +313,17 @@ async function addDiet(cid){const t=$('#d_t').value.trim();if(!t)return toast('P
  let b64=null,fn=null;if(f){if(f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))return toast('Solo PDF');b64=await new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(f)});fn=f.name}
  const{error}=await sb.from('diets').insert({client_id:cid,title:t,d:$('#d_d').value||today(),body:b||null,file_name:fn,file_b64:b64});if(error){console.error(error);return toast('No se pudo guardar')}toast('Dieta subida');loadDiets(cid)}
 async function delDiet(id,cid){if(!confirm('¿Borrar esta dieta?'))return;const{error}=await sb.from('diets').delete().eq('id',id);if(error)return toast('No se pudo borrar');loadDiets(cid)}
+
+// ---- seguimiento nutricional
+const mergeM=(m,w)=>[...(m||[]).map(x=>({d:x.d,w:x.w,c:x.c})),...(w||[]).map(x=>({d:x.d,w:x.weight,c:x.waist}))].sort((a,b)=>a.d.localeCompare(b.d));
+async function addWL(){const w=$('#w_w').value,k=$('#w_c').value,d=$('#w_d').value||today();if(!w&&!k)return toast('Escribe tu peso o tu cintura');const{error}=await sb.from('weight_logs').insert({client_id:MYC.id,d,weight:w?+w:null,waist:k?+k:null});if(error){console.error(error);return toast('Revisa los valores')}toast('Registro guardado');await loadClient();render(true)}
+async function delWL(id){if(!confirm('¿Borrar este registro?'))return;await sb.from('weight_logs').delete().eq('id',id);await loadClient();render(true)}
+async function loadWL(c){const el=$('#wlogs');if(!el)return;const{data,error}=await sb.from('weight_logs').select('*').eq('client_id',c.id).order('d',{ascending:false});if(!$('#wlogs'))return;if(error){el.innerHTML='';return}
+ const ch=$('#wchart');if(ch)ch.innerHTML=chart(mergeM(c.measures,data).filter(m=>m.w),'w','kg');
+ el.innerHTML=`<div class="card"><b>Lo que ha anotado el cliente</b>${(data||[]).map(m=>`<div class="ex mut">${new Date(m.d+'T12:00').toLocaleDateString('es-ES')}: ${m.weight??'–'} kg · cintura ${m.waist??'–'} cm</div>`).join('')||'<div class="empty" style="padding:10px">Todavía no ha anotado nada</div>'}</div>`}
+function vSeg(){setTimeout(loadSeg,0);return`<button class="btn ghost sm" onclick="go('#/clientes')">← Clientes</button><h2>Seguimiento nutricional</h2><div id="seg"><div class="empty">Cargando…</div></div>`}
+async function loadSeg(){const el=$('#seg');if(!el)return;const cs=S.clients.filter(c=>c.tracking);const{data,error}=await sb.from('weight_logs').select('*').order('d');if(!$('#seg'))return;if(error){el.innerHTML='<div class="empty">No se pudo cargar</div>';return}
+ const dd=d=>new Date(d+'T12:00').toLocaleDateString('es-ES');
+ el.innerHTML=cs.map(c=>{const L=(data||[]).filter(x=>x.client_id===c.id);const W=L.filter(x=>x.weight!=null);const last=L[L.length-1];const days=last?Math.floor((Date.now()-new Date(last.d+'T12:00'))/864e5):null;
+ const ch=W.length>1?(W[W.length-1].weight-W[0].weight):null;
+ return`<div class="card click" onclick="go('#/cliente/${c.id}')"><div class="row"><b>${esc(c.name)}</b><span class="tag${days==null||days>14?' red':''}">${last?(days===0?'hoy':'hace '+days+' d'):'sin registros'}</span></div><div class="mut">${L.length} registros${W.length?` · último peso ${W[W.length-1].weight} kg (${dd(W[W.length-1].d)})`:''}${ch!=null?` · ${ch>0?'+':''}${ch.toFixed(1)} kg desde el primero`:''}${last&&last.waist!=null?` · cintura ${last.waist} cm`:''}</div></div>`}).join('')||'<div class="empty">Ningún cliente tiene seguimiento nutricional trimestral. Se activa en su ficha.</div>'}
