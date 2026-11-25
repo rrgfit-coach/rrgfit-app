@@ -118,7 +118,7 @@ ${c.tracking?`<h3>Progreso</h3><div class="card">${chart([...c.measures].sort((a
 <div class="g2" style="margin-top:8px"><div><label>Peso (kg)</label><input id="m_w" type="number" step="0.1"></div><div><label>Cintura (cm)</label><input id="m_c" type="number" step="0.5"></div></div>
 <button class="btn sm" onclick="addM()">Añadir registro</button>
 ${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div class="ex mut">${m.d}: ${m.w||'–'} kg · cintura ${m.c||'–'} cm</div>`).join('')}</div>`:''}
-<h3>Rutinas asignadas</h3>${c.routines.map((r,i)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn del sm" onclick="unassign(${i})">Quitar</button></div>${r.items.map(e=>`<div class="ex">${exLink(e)} <span class="mut">· ${e.s}x${esc(e.r)} ${esc(e.note||'')}</span></div>`).join('')}</div>`).join('')||'<div class="empty">Sin rutinas</div>'}
+<h3>Rutinas asignadas</h3>${c.routines.map((r,i)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><span><button class="btn ghost sm" onclick="pdfR(${i})">PDF</button> <button class="btn del sm" onclick="unassign(${i})">Quitar</button></span></div>${r.items.map(e=>`<div class="ex">${exLink(e)} <span class="mut">· ${e.s}x${esc(e.r)} ${esc(e.note||'')}</span></div>`).join('')}</div>`).join('')||'<div class="empty">Sin rutinas</div>'}
 <div class="card"><label>Asignar rutina</label><select id="as">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><button class="btn sm" onclick="assign()">Asignar</button></div>
 <h3>Notas de sesión</h3><div class="card"><textarea id="n_t" rows="2" placeholder="Cómo fue la sesión…"></textarea><button class="btn sm" onclick="addN()">Guardar nota</button>
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
@@ -141,6 +141,12 @@ return`<button class="btn ghost sm" onclick="go('#/rutinas')">← Rutinas</butto
 <label>O escribe uno propio</label><input id="ex_n" placeholder="Nombre del ejercicio"><button class="btn sm" onclick="addEx()">Añadir</button></div>
 <button class="btn" onclick="saveR()">Guardar rutina</button> ${window._rn?'':`<button class="btn del" onclick="delR()">Borrar</button>`}`}
 function rerender(){$('#app').innerHTML=rutinaForm()}
+function pdfR(i){const trainer=ROLE==='trainer';const c=trainer?window._c:MYC;const rs=trainer?c.routines:((MYC&&MYC.data&&MYC.data.routines)||[]);const r=rs[i];if(!r)return;
+const who=c.name||'';const wn=trainer?(S.settings.name||'RRG FIT'):((MYC.data&&MYC.data.t)||'RRG FIT');
+const rows=r.items.map((e,k)=>{const x=e.xid&&window.EX?window.EX.find(q=>q[0]===e.xid):null;return`<tr><td class="n">${k+1}</td><td><b>${esc(e.n)}</b>${e.note?`<div class="nt">${esc(e.note)}</div>`:''}</td><td class="c">${esc(e.s)}</td><td class="c">${esc(e.r)}</td><td class="im">${x?`<img src="${IMG}${x[6]}"><img src="${IMG}${x[7]}">`:''}</td></tr>`}).join('');
+const old=$('#pv');if(old)old.remove();const d=document.createElement('div');d.id='pv';
+d.innerHTML=`<div class="pvbar"><button class="btn" onclick="window.print()">Imprimir / Guardar PDF</button> <button class="btn ghost" onclick="$('#pv').remove();document.body.classList.remove('pvon')">Cerrar</button></div><div class="pvdoc"><div class="pvh"><img src="logo.png" alt=""><div><h1>RRG FIT</h1><div>Rutina de ${esc(who)}</div></div></div><h2>${esc(r.name)}</h2><table><thead><tr><th></th><th>Ejercicio</th><th>Series</th><th>Reps</th><th></th></tr></thead><tbody>${rows}</tbody></table><div class="pvf">${esc(wn)} · RRG FIT · ${new Date().toLocaleDateString('es-ES')}</div></div>`;
+document.body.appendChild(d);document.body.classList.add('pvon');window.scrollTo(0,0)}
 function exLink(e){return e.xid?`<a class="exl" onclick="go('#/ejercicio/${esc(e.xid)}')">${esc(e.n)} <span class="tag red">ver ▶</span></a>`:esc(e.n)}
 function pkSearch(v){const el=$('#pk');if(!window.EX){el.innerHTML='<div class="mut">Cargando lista…</div>';setTimeout(()=>{if(window.EX)pkSearch($('#pk_q').value)},800);return}
 const t=nrm(v).split(/\s+/).filter(Boolean);if(!t.length){el.innerHTML='';return}
@@ -247,13 +253,13 @@ return`<div class="card"><div class="row"><button class="btn ghost sm" onclick="
 <div class="mut" style="margin:6px 2px">${sd[0].toUpperCase()+sd.slice(1)}</div>${ds.map(x=>`<div class="card"><b>${x.dt.slice(11,16)} · ${esc(x.service||'Sesión')}</b>${x.done?'<div class="mut">Hecha</div>':''}</div>`).join('')||'<div class="empty" style="padding:14px">Sin sesión este día</div>'}`}
 function vCliente(){if(!MYC)return`<h2>Hola</h2><div class="card">Tu entrenadora aún no ha vinculado tu cuenta. Escríbele y lo arregla.</div><button class="btn ghost" onclick="logout()">Salir</button>`;
 if(MYC.consent_at==null||MYC.consent_version!==POLICY_V)return vConsent();
-const hh=location.hash.replace(/^#\/?/,'').split('/');if(hh[0]==='ejercicio')return vEjerDet(hh[1]);
+loadEX();const hh=location.hash.replace(/^#\/?/,'').split('/');if(hh[0]==='ejercicio')return vEjerDet(hh[1]);
 const d=MYC.data||{},nx=MYS.filter(s=>!s.done&&s.dt>=new Date().toISOString().slice(0,16)).sort((a,b)=>a.dt.localeCompare(b.dt))[0],b=d.bono||{total:0,used:0};
 return`<h2>Hola, ${esc(MYC.name.split(' ')[0])}</h2>
 <div class="card"><div class="mut">Próxima sesión</div>${nx?`<div class="big" style="font-size:22px">${fdate(nx.dt)}</div><div class="mut">${esc(nx.service||'')}</div>`:'<div>Aún sin fecha. Escríbeme y la fijamos.</div>'}</div>
 ${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.max(0,b.total-b.used)} de ${b.total} sesiones</b><div class="bono"><i style="width:${Math.max(0,b.total-b.used)/b.total*100}%"></i></div></div>`:''}
 <h3>Tu calendario</h3>${calClient()}
-<h3>Tus rutinas</h3>${(d.routines||[]).map(r=>`<div class="card"><b>${esc(r.name)}</b>${r.items.map(e=>`<div class="ex">${exLink(e)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
+<h3>Tus rutinas</h3>${(d.routines||[]).map((r,ri)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn ghost sm" onclick="pdfR(${ri})">PDF / imprimir</button></div>${r.items.map(e=>`<div class="ex">${exLink(e)}<div class="mut">${e.s} series x ${esc(e.r)} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
 ${d.tracking?`<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>`:''}
 ${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
 <p><button class="btn ghost sm" onclick="dlMine()">Descargar mis datos</button> <a class="btn ghost sm" href="#/privacidad">Privacidad</a> <button class="btn ghost sm" onclick="logout()">Salir</button></p>`}
@@ -270,7 +276,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1505';
+const APPV='20261125-1520';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
