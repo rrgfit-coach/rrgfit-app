@@ -2,7 +2,7 @@
 const SB_URL='https://vyjaohlwpzebeamdscyr.supabase.co';
 const SB_KEY='sb_publishable_v7TX17F0Rf0gTc6XGrFGRQ_K2W_-xKY';
 const SITE='https://rrgfit-coach.github.io/rrgfit-app/';
-const POLICY_V='2026-11-25';
+const POLICY_V='2026-11-26';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -15,7 +15,7 @@ function dmSet(k,key,v){window._r.items.forEach(e=>{if((e.d||1)===k){if(key==='t
 function newItem(o){const k=window._rd||1;const m=dmeta(window._r.items,k);return Object.assign({d:k,s:3,r:'10',rest:'',load:'',note:''},m.t?{dn:m.t}:{},m.sm?{sm:true}:{},o)}
 const EXS={Boxeo:['Sombra 3x3 min','Jab-cruzado en saco','Trabajo de manoplas','Defensa y esquivas','Combinaciones al saco'],'Muay Thai':['Patada baja','Rodillazos en saco','Clinch','Patada frontal (teep)','Manoplas thai'],K1:['Combinaciones K1','Patadas altas','Guardia y desplazamientos','Saco 5x3 min'],Funcional:['Burpees','Kettlebell swing','Plancha','Zancadas','Remo con banda','Saltos al cajón'],Fuerza:['Sentadilla','Peso muerto rumano','Hip thrust','Press de banca','Dominadas asistidas','Press militar','Puente de glúteo'],Movilidad:['Movilidad de cadera','Movilidad de hombros','Gato-camello']};
 const SEED=[['Boxeo iniciación','Boxeo',['Sombra 3x3 min','Jab-cruzado en saco','Defensa y esquivas']],['Muay Thai base','Muay Thai',['Patada baja','Rodillazos en saco','Patada frontal (teep)']],['Funcional cuerpo completo','Funcional',['Burpees','Kettlebell swing','Zancadas','Plancha']],['Fuerza GAP','Fuerza / GAP',['Hip thrust','Sentadilla','Peso muerto rumano','Puente de glúteo']],['Movilidad suave','Movilidad',['Movilidad de cadera','Movilidad de hombros','Gato-camello']]];
-let S={settings:{},clients:[],sessions:[],routines:[]};
+let MYD=[];let S={settings:{},clients:[],sessions:[],routines:[]};
 let ME=null,ROLE=null,MYC=null,MYS=[],AUTHVIEW='login',RECOVERY=false;
 // ---- sincronización con la nube (entrenadora)
 let snap={clients:{},priv:{},routines:{},sessions:{},settings:''},dirty=false,saving=false,timer=null;
@@ -54,8 +54,8 @@ async function loadTrainer(){
  if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
 }
 async function loadClient(){
- const[a,b]=await Promise.all([sb.from('clients').select('*').eq('user_id',ME.id).maybeSingle(),sb.from('sessions').select('*')]);
- if(a.error)throw a.error;MYC=a.data;MYS=(b.data||[]);
+ const[a,b,dd]=await Promise.all([sb.from('clients').select('*').eq('user_id',ME.id).maybeSingle(),sb.from('sessions').select('*'),sb.from('diets').select('id,title,d,body,file_name').order('d',{ascending:false})]);
+ if(a.error)throw a.error;MYC=a.data;MYS=(b.data||[]);MYD=(dd.data||[]);
 }
 async function boot(){
  const{data}=await sb.auth.getSession();
@@ -126,7 +126,8 @@ ${[...c.measures].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,6).map(m=>`<div cl
 <div class="card"><label>Asignar rutina</label><select id="as">${S.routines.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select><button class="btn sm" onclick="assign()">Asignar</button></div>
 <h3>Notas de sesión</h3><div class="card"><textarea id="n_t" rows="2" placeholder="Cómo fue la sesión…"></textarea><button class="btn sm" onclick="addN()">Guardar nota</button>
 ${(c.logs||[]).map(l=>`<div class="ex"><span class="mut">${l.d}</span> ${esc(l.t)}</div>`).join('')}</div>
-${accesoCard(c)}`}`}
+<h3>Dietas</h3><div id="dietas"><div class="empty">Cargando…</div></div>
+${accesoCard(c)}`}`+(nw?'':(setTimeout(()=>loadDiets(c.id),0),''))}
 function saveC(nw){const c=window._c;c.name=$('#f_name').value.trim();if(!c.name)return toast('Pon un nombre');c.phone=$('#f_phone').value.trim();c.origin=$('#f_origin').value;c.goal=$('#f_goal').value;c.injuries=$('#f_inj').value;c.bono={total:+$('#f_bt').value||0,used:+$('#f_bu').value||0};c.active=$('#f_act').checked;c.tracking=$('#f_trk').checked;if(nw)S.clients.push(c);save();toast('Guardado');go('#/cliente/'+c.id);render()}
 function delC(id){if(!confirm('¿Borrar este cliente y sus datos?'))return;S.clients=S.clients.filter(c=>c.id!==id);S.sessions=S.sessions.filter(s=>s.clientId!==id);save();go('#/clientes')}
 function addM(){const c=window._c;const w=$('#m_w').value,k=$('#m_c').value;if(!w&&!k)return;c.measures.push({d:today(),w:w?+w:null,c:k?+k:null});save();render()}
@@ -245,10 +246,10 @@ function exportD(){const a=document.createElement('a');a.href=URL.createObjectUR
 const POLICY=`<h2>Política de privacidad</h2><div class="card legal">
 <p class="mut">Versión ${POLICY_V}</p>
 <h3>Quién es el responsable</h3><p>Raquel Rodríguez Gómez (RRG FIT), NIF 50250597J. Dirección: Antonio Celedonio Lorente nº3, 28600 Madrid. Email de contacto: rrgfit.coach@gmail.com.</p>
-<h3>Qué datos tratamos</h3><p>Nombre, teléfono y email; objetivo de entrenamiento; datos de salud y condición física que tú o tu entrenadora anotáis (lesiones, peso, medidas); rutinas asignadas, sesiones, bonos y notas de seguimiento.</p>
+<h3>Qué datos tratamos</h3><p>Nombre, teléfono y email; objetivo de entrenamiento; datos de salud y condición física que tú o tu entrenadora anotáis (lesiones, peso, medidas); rutinas asignadas, planes de alimentación (dietas) que tu entrenadora te prepara, sesiones, bonos y notas de seguimiento.</p>
 <h3>Para qué</h3><p>Prestar el servicio de entrenamiento personal: preparar y asignar rutinas, gestionar sesiones y bonos y que puedas ver tu plan en la app.</p>
 <h3>Base legal</h3><p>La ejecución del servicio que contratas (art. 6.1.b RGPD) y, para los datos de salud, tu consentimiento explícito (art. 9.2.a RGPD), que das al aceptar esta política y puedes retirar cuando quieras.</p>
-<h3>Quién ve tus datos</h3><p>Solo tu entrenadora. Tú ves únicamente tus propios datos en la app. Las lesiones y notas médicas las ve solo ella, no se muestran en tu pantalla. Para guardar los datos usamos Supabase como proveedor (encargado del tratamiento), con servidores en París (UE). La web se aloja en GitHub Pages, que no recibe tus datos personales. Además, tu entrenadora guarda una copia de seguridad semanal de los datos en una carpeta privada de su cuenta de Google Drive (Google actúa como proveedor de almacenamiento), y conserva las últimas 8 semanas.</p>
+<h3>Quién ve tus datos</h3><p>Solo tu entrenadora. Tú ves únicamente tus propios datos en la app. Las lesiones y notas médicas las ve solo ella, no se muestran en tu pantalla. Tu dieta la ven solo tú y ella. Para guardar los datos usamos Supabase como proveedor (encargado del tratamiento), con servidores en París (UE). La web se aloja en GitHub Pages, que no recibe tus datos personales. Además, tu entrenadora guarda una copia de seguridad semanal de los datos en una carpeta privada de su cuenta de Google Drive (Google actúa como proveedor de almacenamiento), y conserva las últimas 8 semanas.</p>
 <h3>Cuánto tiempo</h3><p>Mientras dure la relación con tu entrenadora. Después, los datos se borran, salvo lo que la ley obligue a conservar.</p>
 <h3>Tus derechos</h3><p>Puedes pedir acceso, rectificación, supresión, limitación, oposición y portabilidad de tus datos, y retirar tu consentimiento, escribiendo a rrgfit.coach@gmail.com. En la app puedes descargar tus datos. Si crees que no tratamos bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
 </div>`;
@@ -279,6 +280,7 @@ return`<h2>Hola, ${esc(MYC.name.split(' ')[0])}</h2>
 ${b.total?`<div class="card"><div class="mut">Tu bono</div><b>Te quedan ${Math.max(0,b.total-b.used)} de ${b.total} sesiones</b><div class="bono"><i style="width:${Math.max(0,b.total-b.used)/b.total*100}%"></i></div></div>`:''}
 <h3>Tu calendario</h3>${calClient()}
 <h3>Tus rutinas</h3>${(d.routines||[]).length>1?'<button class="btn sm" onclick="pdfR(\'all\')">PDF con todas las rutinas juntas</button>':''}${(d.routines||[]).map((r,ri)=>`<div class="card"><div class="row"><b>${esc(r.name)}</b><button class="btn ghost sm" onclick="pdfR(${ri})">PDF / imprimir</button></div>${r.items.map(e=>`<div class="ex">${exLink(e)}<div class="mut">${(e.d>1||e.dn)?'Día '+(e.d||1)+(e.dn?' ('+esc(e.dn)+')':'')+' · ':''}${e.s} series x ${esc(e.r)}${e.rest?' · descanso '+esc(e.rest):''}${e.load&&e.load!=='-'?' · '+esc(e.load):''} ${esc(e.note||'')}</div></div>`).join('')}</div>`).join('')||'<div class="empty">Todavía no tienes rutinas.</div>'}
+${MYD.length?`<h3>Mi dieta</h3>${MYD.map(x=>`<div class="card"><div class="row"><b>${esc(x.title)}</b><span class="mut">${new Date(x.d+'T12:00').toLocaleDateString('es-ES')}</span></div>${x.body?`<div style="white-space:pre-wrap;margin-top:6px">${esc(x.body)}</div>`:''}${x.file_name?`<button class="btn sm" style="margin-top:8px" onclick="openDiet('${x.id}')">Ver / descargar PDF</button>`:''}</div>`).join('')}`:''}
 ${d.tracking?`<h3>Tu progreso</h3><div class="card">${chart((d.measures||[]).filter(m=>m.w).sort((a,b)=>a.d.localeCompare(b.d)),'w','kg')}</div>`:''}
 ${d.wa?`<p><a class="btn wa" href="https://wa.me/${d.wa}?text=${encodeURIComponent('Hola '+(d.t||'')+', soy '+MYC.name)}" target="_blank">Escribir a ${esc(d.t||'mi entrenadora')} por WhatsApp</a></p>`:''}
 <p><button class="btn ghost sm" onclick="dlMine()">Descargar mis datos</button> <a class="btn ghost sm" href="#/privacidad">Privacidad</a> <button class="btn ghost sm" onclick="logout()">Salir</button></p>`}
@@ -295,7 +297,18 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-1810';
+const APPV='20261125-1830';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
+
+// ---- dietas
+function b64blob(b64,type){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type})}
+async function openDiet(id){const{data,error}=await sb.from('diets').select('file_b64,file_name').eq('id',id).single();if(error||!data||!data.file_b64)return toast('No se pudo abrir');const a=document.createElement('a');a.href=URL.createObjectURL(b64blob(data.file_b64,'application/pdf'));a.target='_blank';a.download=data.file_name||'dieta.pdf';document.body.appendChild(a);a.click();a.remove()}
+async function loadDiets(cid){const el=$('#dietas');if(!el)return;const{data,error}=await sb.from('diets').select('id,title,d,body,file_name').eq('client_id',cid).order('d',{ascending:false});if(!$('#dietas'))return;if(error){el.innerHTML='<div class="empty">No se pudieron cargar las dietas</div>';return}
+ el.innerHTML=(data||[]).map(x=>`<div class="card"><div class="row"><b>${esc(x.title)}</b><span class="mut">${new Date(x.d+'T12:00').toLocaleDateString('es-ES')}</span></div>${x.body?`<div class="mut" style="white-space:pre-wrap">${esc(x.body.slice(0,200))}${x.body.length>200?'…':''}</div>`:''}<div style="margin-top:6px">${x.file_name?`<button class="btn ghost sm" onclick="openDiet('${x.id}')">Ver PDF (${esc(x.file_name)})</button> `:''}<button class="btn del sm" onclick="delDiet('${x.id}','${cid}')">Borrar</button></div></div>`).join('')||'<div class="empty">Sin dietas</div>'
+ +`<div class="card"><label>Título</label><input id="d_t" placeholder="Ej: Dieta noviembre"><label>Fecha</label><input id="d_d" type="date" value="${today()}"><label>Texto (opcional)</label><textarea id="d_b" rows="4" placeholder="Puedes escribir la dieta aquí y/o subir un PDF"></textarea><label>PDF (opcional, máx. 3 MB)</label><input id="d_f" type="file" accept="application/pdf"><br><br><button class="btn sm" onclick="addDiet('${cid}')">Subir dieta</button></div>`}
+async function addDiet(cid){const t=$('#d_t').value.trim();if(!t)return toast('Pon un título');const b=$('#d_b').value.trim();const f=$('#d_f').files[0];if(!b&&!f)return toast('Escribe el texto o sube un PDF');if(f&&f.size>3*1024*1024)return toast('El PDF pesa más de 3 MB');
+ let b64=null,fn=null;if(f){if(f.type!=='application/pdf'&&!/\.pdf$/i.test(f.name))return toast('Solo PDF');b64=await new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(f)});fn=f.name}
+ const{error}=await sb.from('diets').insert({client_id:cid,title:t,d:$('#d_d').value||today(),body:b||null,file_name:fn,file_b64:b64});if(error){console.error(error);return toast('No se pudo guardar')}toast('Dieta subida');loadDiets(cid)}
+async function delDiet(id,cid){if(!confirm('¿Borrar esta dieta?'))return;const{error}=await sb.from('diets').delete().eq('id',id);if(error)return toast('No se pudo borrar');loadDiets(cid)}
