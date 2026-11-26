@@ -23,7 +23,7 @@ const j=o=>JSON.stringify(o);
 const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,nut:c.nut||(c.tracking?'3m':''),price:c.price||null,routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
 const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[]}});
 const rowRoutine=r=>({id:r.id,name:r.name,cat:r.cat||null,items:r.items||[]});
-const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done,ot:s.ot||null});
+const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done,ot:s.ot||null,price:s.price??null});
 function setStatus(t,c){const e=$('#sub');if(e&&ROLE==='trainer'){e.textContent=t;e.style.color=c||''}}
 function save(){dirty=true;setStatus('Guardando…');clearTimeout(timer);timer=setTimeout(flush,500)}
 async function flush(){if(saving||ROLE!=='trainer'){return}saving=true;dirty=false;
@@ -48,7 +48,7 @@ async function loadTrainer(){
  S.settings=t.data.settings||{};
  S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,nut:x.nut||(x.tracking?'3m':''),price:x.price||null,routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
  S.routines=c.data.map(r=>({id:r.id,name:r.name,cat:r.cat,items:r.items||[]}));
- S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done,ot:r.ot||''}));
+ S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done,ot:r.ot||'',price:r.price??null}));
  snap={clients:{},priv:{},routines:{},sessions:{},settings:j(S.settings)};
  S.clients.forEach(x=>{snap.clients[x.id]=j(rowClient(x));snap.priv[x.id]=j(rowPriv(x))});S.routines.forEach(x=>snap.routines[x.id]=j(rowRoutine(x)));S.sessions.forEach(x=>snap.sessions[x.id]=j(rowSess(x)));
  if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
@@ -197,13 +197,14 @@ for(let d=1;d<=dim;d++){const k=CAL.y+'-'+pad(CAL.m+1)+'-'+pad(d);const c=cnt[k]
 const ds=S.sessions.filter(x=>x.dt.slice(0,10)===CAL.sel).sort((a,b)=>a.dt.localeCompare(b.dt));
 const sd=new Date(CAL.sel+'T12:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
 const def=CAL.sel+'T'+(CAL.sel===td?pad(Math.min(23,n.getHours()+1))+':00':'10:00');
-const sr=s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${s.dt.slice(11,16)} · ${esc(c?c.name:'?')}</b><div class="mut">${esc(s.service)}${s.done?' · hecha':''}${otTag(s)}</div></div><div>${(c&&c.origin==='vivofacil')?`<button class="btn ghost sm" onclick="editOT('${s.id}')">OT</button> `:''}${s.done?'':`<button class="btn sm" onclick="doneS('${s.id}')">✓</button> `}<button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`};
+const sr=s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${s.dt.slice(11,16)} · ${esc(c?c.name:'?')}</b><div class="mut">${esc(s.service)}${s.done?' · hecha':''}${otTag(s)}${prTag(s)}</div></div><div>${(c&&c.origin==='vivofacil')?`<button class="btn ghost sm" onclick="editOT('${s.id}')">OT</button> `:''}${(c&&c.origin!=='vivofacil')?`<button class="btn ghost sm" onclick="editPrice('${s.id}')">€</button> `:''}${s.done?'':`<button class="btn sm" onclick="doneS('${s.id}')">✓</button> `}<button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`};
 setTimeout(otToggle,0);return`<h2>Agenda</h2><div class="card"><div class="row"><button class="btn ghost sm" onclick="calGo(-1)">‹</button><b>${mn[0].toUpperCase()+mn.slice(1)}</b><button class="btn ghost sm" onclick="calGo(1)">›</button></div><div class="cal">${cells}</div><button class="btn ghost sm" style="margin-top:8px" onclick="calToday()">Hoy</button></div>
 <h3>${sd[0].toUpperCase()+sd.slice(1)}</h3>${ds.map(sr).join('')||'<div class="empty">Nada este día</div>'}
 <div class="card"><label>Añadir sesión</label><select id="a_c" onchange="otToggle()">${S.clients.filter(c=>c.active!==false).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">(crea un cliente antes)</option>'}</select>
 <div id="a_otw" style="display:none"><label>OT de la sesión (Vivofácil, solo números)</label><input id="a_ot" inputmode="numeric" pattern="[0-9]*" placeholder="Ej: 123456"></div>
+<div id="a_prw" style="display:none"><label>Precio de la sesión (€, sin IVA)</label><input id="a_pr" inputmode="decimal" placeholder="Ej: 35"></div>
 <div class="g2"><div><label>Fecha y hora</label><input id="a_d" type="datetime-local" value="${def}"></div><div><label>Servicio</label><select id="a_s">${SERV.map(s=>`<option>${s}</option>`).join('')}</select></div></div><button class="btn" onclick="addS()">Añadir sesión</button></div>
-<h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}${otTag(s)}</div></div><div>${(c&&c.origin==='vivofacil')?`<button class="btn ghost sm" onclick="editOT('${s.id}')">OT</button> `:''}<button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
+<h3>Próximas</h3>${up.map(s=>{const c=cl(s.clientId);return`<div class="card row"><div><b>${esc(c?c.name:'?')}</b><div class="mut">${fdate(s.dt)} · ${esc(s.service)}${otTag(s)}${prTag(s)}</div></div><div>${(c&&c.origin==='vivofacil')?`<button class="btn ghost sm" onclick="editOT('${s.id}')">OT</button> `:''}${(c&&c.origin!=='vivofacil')?`<button class="btn ghost sm" onclick="editPrice('${s.id}')">€</button> `:''}<button class="btn sm" onclick="doneS('${s.id}')">✓</button> <button class="btn del sm" onclick="delS('${s.id}')">✕</button></div></div>`}).join('')||'<div class="empty">Sin sesiones</div>'}`}
 
 const IMG='https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/';
 let EXQ='',EXM='',EXN=60;
@@ -224,7 +225,7 @@ function vEjerDet(id){loadEX();if(!window.EX)return'<div class="empty">Cargando�
 return`<button class="btn ghost sm" onclick="history.back()">‹ Volver</button><h2 style="margin-top:12px">${esc(r[1])}</h2><div class="mut">${esc(r[2])}</div>
 <div class="exan card"><img src="${IMG}${r[6]}" alt="${esc(r[1])}, posición inicial"><img class="b" src="${IMG}${r[7]}" alt="${esc(r[1])}, posición final"></div>
 <div class="card"><span class="tag red">${esc(r[3].join(', '))}</span><span class="tag">${esc(r[4])}</span><span class="tag">${esc(r[5])}</span></div>`}
-function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');const cc=cl(c);let ot='';if(cc&&cc.origin==='vivofacil'){ot=($('#a_ot').value||'').trim();if(ot&&!/^\d{1,20}$/.test(ot))return toast('La OT solo lleva números')}S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false,ot});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
+function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');const cc=cl(c);let ot='',price=null;if(cc&&cc.origin==='vivofacil'){ot=($('#a_ot').value||'').trim();if(ot&&!/^\d{1,20}$/.test(ot))return toast('La OT solo lleva números')}else{const pv=($('#a_pr')?$('#a_pr').value:'').trim().replace(',','.');if(pv){const n=+pv;if(!isFinite(n)||n<0||n>100000)return toast('Revisa el precio');price=Math.round(n*100)/100}}S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false,ot,price});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
 function delS(id){S.sessions=S.sessions.filter(s=>s.id!==id);save();render()}
 function accesoCard(c){
  if(c.user_id)return`<h3>Acceso a la app</h3><div class="card"><div>✅ Tiene acceso con <b>${esc(c.email||'su email')}</b></div><div class="mut">${c.consent_at?'Ha aceptado la política de privacidad el '+new Date(c.consent_at).toLocaleDateString('es-ES'):'Aún no ha aceptado la política de privacidad (la verá al entrar).'}</div><div class="mut">Si olvida la contraseña, puede pedir una nueva con "¿Olvidaste tu contraseña?" en la pantalla de entrada.</div><br>
@@ -301,7 +302,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261125-2100';
+const APPV='20261126-0830';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
@@ -351,25 +352,28 @@ function dupR(id){const src=id?S.routines.find(x=>x.id===id):window._r;if(!src)r
 
 // ---- OT y resumen mensual
 const otTag=s=>{const c=cl(s.clientId);return c&&c.origin==='vivofacil'?(s.ot?' · OT '+esc(s.ot):' · <span style="color:#e8731a">sin OT</span>'):''};
-function otToggle(){const sel=$('#a_c'),w=$('#a_otw');if(!sel||!w)return;const c=cl(sel.value);w.style.display=c&&c.origin==='vivofacil'?'block':'none'}
+const sPr=(s,c)=>s.price!=null?s.price:(c&&c.price&&c.price.amt!=null?c.price.amt:null);
+const prTag=s=>{const c=cl(s.clientId);if(!c||c.origin==='vivofacil')return'';const p=sPr(s,c);return p!=null?' · '+eur(p):' · <span style="color:#e8731a">sin precio</span>'};
+function editPrice(id){const s=S.sessions.find(x=>x.id===id);if(!s)return;const c=cl(s.clientId);const v=prompt('Precio de esta sesión (€, sin IVA). Déjalo vacío para usar el precio de la ficha del cliente.',s.price!=null?s.price:(c&&c.price&&c.price.amt!=null?c.price.amt:''));if(v===null)return;const t=v.trim().replace(',','.');if(!t){s.price=null;save();render(true);return}const n=+t;if(!isFinite(n)||n<0||n>100000)return toast('Revisa el precio');s.price=Math.round(n*100)/100;save();render(true)}
+function otToggle(){const sel=$('#a_c');if(!sel)return;const c=cl(sel.value);const viv=c&&c.origin==='vivofacil';const w=$('#a_otw');if(w)w.style.display=viv?'block':'none';const pw=$('#a_prw');if(pw){pw.style.display=viv?'none':'block';const pr=$('#a_pr');if(pr)pr.value=c&&c.price&&c.price.amt!=null?c.price.amt:''}}
 function editOT(id){const s=S.sessions.find(x=>x.id===id);if(!s)return;const v=prompt('OT de esta sesión (solo números)',s.ot||'');if(v===null)return;const t=v.trim();if(t&&!/^\d{1,20}$/.test(t))return toast('La OT solo lleva números');s.ot=t;save();render(true)}
 const eur=n=>n.toFixed(2).replace('.',',')+' €';
 function rmSet(m){window._rm=m;render()}
 function rmShift(d){const [y,m]=(window._rm||today().slice(0,7)).split('-').map(Number);const dt=new Date(y,m-1+d,1);rmSet(dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'))}
 function rmCalc(m){const ss=S.sessions.filter(s=>s.done&&s.dt.slice(0,7)===m).sort((a,b)=>a.dt.localeCompare(b.dt));const own={},viv=[];let tot=0,nop=0,own_n=0;
- ss.forEach(s=>{const c=cl(s.clientId);if(!c)return;if(c.origin==='vivofacil'){viv.push({s,c});return}own_n++;const o=own[c.id]||(own[c.id]={c,n:0});o.n++;if(c.price&&c.price.amt!=null)tot+=c.price.amt;else nop++});
+ ss.forEach(s=>{const c=cl(s.clientId);if(!c)return;if(c.origin==='vivofacil'){viv.push({s,c});return}own_n++;const o=own[c.id]||(own[c.id]={c,n:0,tot:0,nop:0});o.n++;const p=sPr(s,c);if(p!=null){tot+=p;o.tot+=p}else{nop++;o.nop++}});
  return{own:Object.values(own).sort((a,b)=>a.c.name.localeCompare(b.c.name)),viv,tot,nop,own_n}}
 function vResumen(){const m=window._rm||(window._rm=today().slice(0,7));const r=rmCalc(m);const [y,mo]=m.split('-').map(Number);const nm=new Date(y,mo-1,1).toLocaleString('es-ES',{month:'long',year:'numeric'});
  const hist=[];for(let i=0;i<12;i++){const d=new Date(new Date().getFullYear(),new Date().getMonth()-i,1);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');const x=rmCalc(k);if(x.own_n||x.viv.length||k===m)hist.push([k,d,x])}
  return`<button class="btn ghost sm" onclick="go('#/')">← Inicio</button><h2>Resumen del mes</h2>
 <div class="card"><div class="row"><button class="btn ghost sm" onclick="rmShift(-1)">‹</button><b>${nm[0].toUpperCase()+nm.slice(1)}</b><button class="btn ghost sm" onclick="rmShift(1)">›</button></div><div class="mut" style="margin-top:6px">Cuenta solo las sesiones marcadas como hechas. Importes sin IVA.</div></div>
 <h3>Clientes propios</h3><div class="card"><div class="big">${eur(r.tot)}</div><div class="mut">${r.own_n} sesiones · sin IVA${r.nop?' · '+r.nop+' sesiones de clientes sin precio puesto':''}</div>
-${r.own.map(o=>`<div class="ex row"><span>${esc(o.c.name)} <span class="mut">· ${o.n} ses.</span></span><span>${o.c.price&&o.c.price.amt!=null?eur(o.n*o.c.price.amt)+(o.c.price.iva==='mas'?' <span class="mut">+IVA</span>':''):'<span style="color:#e8731a">sin precio</span>'}</span></div>`).join('')||'<div class="empty" style="padding:10px">Sin sesiones hechas este mes</div>'}</div>
+${r.own.map(o=>`<div class="ex row"><span>${esc(o.c.name)} <span class="mut">· ${o.n} ses.</span></span><span>${o.nop===o.n?'<span style="color:#e8731a">sin precio</span>':eur(o.tot)+(o.c.price&&o.c.price.iva==='mas'?' <span class="mut">+IVA</span>':'')+(o.nop?' <span style="color:#e8731a">· '+o.nop+' sin precio</span>':'')}</span></div>`).join('')||'<div class="empty" style="padding:10px">Sin sesiones hechas este mes</div>'}</div>
 <h3>Vivofácil</h3><div class="card"><div class="mut">${r.viv.length} sesiones${r.viv.some(x=>!x.s.ot)?' · <span style="color:#e8731a">'+r.viv.filter(x=>!x.s.ot).length+' sin OT</span>':''}</div>
 ${r.viv.map(x=>`<div class="ex row"><span>${new Date(x.s.dt.slice(0,10)+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'numeric'})} · ${esc(x.c.name)} <span class="mut">${esc(x.s.service||'')}</span></span><span>${x.s.ot?'OT '+esc(x.s.ot):'<span style="color:#e8731a">sin OT</span>'}</span></div>`).join('')||'<div class="empty" style="padding:10px">Sin sesiones hechas este mes</div>'}</div>
 <button class="btn" onclick="rmCsv('${m}')">Descargar Excel (CSV) de este mes</button>
 <h3>Mes a mes</h3><div class="card">${hist.map(([k,d,x])=>`<div class="ex row click" onclick="rmSet('${k}')"><span>${d.toLocaleString('es-ES',{month:'long',year:'numeric'})}</span><span class="mut">${eur(x.tot)} · ${x.own_n} propias · ${x.viv.length} Vivofácil</span></div>`).join('')}</div>`}
 function rmCsv(m){const r=rmCalc(m);const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';const L=[['Origen','Fecha','Cliente','Servicio','OT','Precio sin IVA']];
- S.sessions.filter(s=>s.done&&s.dt.slice(0,7)===m).sort((a,b)=>a.dt.localeCompare(b.dt)).forEach(s=>{const c=cl(s.clientId);if(!c)return;const viv=c.origin==='vivofacil';L.push([viv?'Vivofácil':'Propio',s.dt.slice(0,10),c.name,s.service||'',viv?(s.ot||''):'',viv?'':(c.price&&c.price.amt!=null?String(c.price.amt).replace('.',','):'')])});
+ S.sessions.filter(s=>s.done&&s.dt.slice(0,7)===m).sort((a,b)=>a.dt.localeCompare(b.dt)).forEach(s=>{const c=cl(s.clientId);if(!c)return;const viv=c.origin==='vivofacil';L.push([viv?'Vivofácil':'Propio',s.dt.slice(0,10),c.name,s.service||'',viv?(s.ot||''):'',viv?'':(sPr(s,c)!=null?String(sPr(s,c)).replace('.',','):'')])});
  L.push([]);L.push(['Total propios sin IVA','','','','',String(r.tot.toFixed(2)).replace('.',',')]);
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+L.map(x=>x.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download='resumen-'+m+'.csv';a.click()}
