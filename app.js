@@ -20,17 +20,17 @@ let ME=null,ROLE=null,MYC=null,MYS=[],AUTHVIEW='login',RECOVERY=false;
 // ---- sincronización con la nube (entrenadora)
 let snap={clients:{},priv:{},routines:{},sessions:{},settings:''},dirty=false,saving=false,timer=null;
 const j=o=>JSON.stringify(o);
-const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,nut:c.nut||(c.tracking?'3m':''),price:c.price||null,routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
-const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[]}});
+const rowClient=c=>{const r={id:c.id,name:c.name,phone:c.phone||null,email:c.email||null,origin:c.origin||'propio',active:c.active!==false,data:{goal:c.goal||'',bono:c.bono||{total:0,used:0},measures:c.measures||[],tracking:!!c.tracking,nut:c.nut||(c.tracking?'3m':''),routines:c.routines||[],lastContact:c.lastContact||null,created:c.created||today(),wa:S.settings.wa||'',t:S.settings.name||''}};r.user_id=c.user_id||null;return r};
+const rowPriv=c=>({client_id:c.id,data:{injuries:c.injuries||'',logs:c.logs||[],price:c.price||null}});
 const rowRoutine=r=>({id:r.id,name:r.name,cat:r.cat||null,items:r.items||[]});
-const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done,ot:s.ot||null,price:s.price??null});
+const rowSess=s=>({id:s.id,client_id:s.clientId,dt:s.dt,service:s.service||null,done:!!s.done,ot:s.ot||null});
 function setStatus(t,c){const e=$('#sub');if(e&&ROLE==='trainer'){e.textContent=t;e.style.color=c||''}}
 function save(){dirty=true;setStatus('Guardando…');clearTimeout(timer);timer=setTimeout(flush,500)}
 async function flush(){if(saving||ROLE!=='trainer'){return}saving=true;dirty=false;
 try{
  const sets=j(S.settings);
  if(sets!==snap.settings){const{error}=await sb.from('trainers').update({settings:S.settings}).eq('user_id',ME.id);if(error)throw error;snap.settings=sets}
- const plan=[['clients',S.clients.map(rowClient),'id'],['client_private',S.clients.map(rowPriv),'client_id','priv'],['routines',S.routines.map(rowRoutine),'id'],['sessions',S.sessions.map(rowSess),'id']];
+ const plan=[['clients',S.clients.map(rowClient),'id'],['client_private',S.clients.map(rowPriv),'client_id','priv'],['routines',S.routines.map(rowRoutine),'id'],['sessions',S.sessions.map(rowSess),'id'],['session_prices',S.sessions.filter(s=>s.price!=null).map(s=>({session_id:s.id,price:s.price})),'session_id','spr']];
  for(const[tbl,rows,key,sk]of plan){const k=sk||tbl;const old=snap[k];const cur={};rows.forEach(r=>cur[r[key]]=j(r));
   const up=rows.filter(r=>old[r[key]]!==cur[r[key]]);
   if(up.length){const{error}=await sb.from(tbl).upsert(up,{onConflict:key});if(error)throw error;up.forEach(r=>old[r[key]]=cur[r[key]])}
@@ -38,19 +38,22 @@ try{
  for(const[tbl,k,key]of[['sessions','sessions','id'],['routines','routines','id'],['clients','clients','id']]){const ids=new Set((tbl==='clients'?S.clients:tbl==='routines'?S.routines:S.sessions).map(x=>x.id));
   const gone=Object.keys(snap[k]).filter(id=>!ids.has(id));
   if(gone.length){const{error}=await sb.from(tbl).delete().in('id',gone);if(error)throw error;gone.forEach(id=>{delete snap[k][id];if(k==='clients')delete snap.priv[id]})}}
+ {const ids=new Set(S.sessions.filter(s=>s.price!=null).map(x=>x.id));const gone=Object.keys(snap.spr).filter(id=>!ids.has(id));
+  if(gone.length){const{error}=await sb.from('session_prices').delete().in('session_id',gone);if(error)throw error;gone.forEach(id=>{delete snap.spr[id]})}}
  setStatus('Guardado ✓');
 }catch(e){console.error(e);dirty=true;setStatus('Sin conexión, reintentando…','#e8731a');setTimeout(()=>{if(dirty)flush()},5000)}
 saving=false;if(dirty&&!timer)flush()}
 async function loadTrainer(){
- const[a,b,c,d,t]=await Promise.all([sb.from('clients').select('*').order('created_at'),sb.from('client_private').select('*'),sb.from('routines').select('*'),sb.from('sessions').select('*'),sb.from('trainers').select('settings').eq('user_id',ME.id).single()]);
- for(const r of[a,b,c,d,t])if(r.error)throw r.error;
+ const[a,b,c,d,t,sp]=await Promise.all([sb.from('clients').select('*').order('created_at'),sb.from('client_private').select('*'),sb.from('routines').select('*'),sb.from('sessions').select('*'),sb.from('trainers').select('settings').eq('user_id',ME.id).single(),sb.from('session_prices').select('*')]);
+ for(const r of[a,b,c,d,t,sp])if(r.error)throw r.error;
+ const spm={};(sp.data||[]).forEach(x=>spm[x.session_id]=x.price);
  const pv={};b.data.forEach(p=>pv[p.client_id]=p.data||{});
  S.settings=t.data.settings||{};
- S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,nut:x.nut||(x.tracking?'3m':''),price:x.price||null,routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
+ S.clients=a.data.map(r=>{const x=r.data||{},p=pv[r.id]||{};return{id:r.id,user_id:r.user_id,name:r.name,phone:r.phone,email:r.email,origin:r.origin,active:r.active,consent_at:r.consent_at,goal:x.goal,bono:x.bono||{total:0,used:0},measures:x.measures||[],tracking:!!x.tracking,nut:x.nut||(x.tracking?'3m':''),price:p.price||null,routines:x.routines||[],lastContact:x.lastContact,created:x.created||(r.created_at||'').slice(0,10),injuries:p.injuries||'',logs:p.logs||[]}});
  S.routines=c.data.map(r=>({id:r.id,name:r.name,cat:r.cat,items:r.items||[]}));
- S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done,ot:r.ot||'',price:r.price??null}));
- snap={clients:{},priv:{},routines:{},sessions:{},settings:j(S.settings)};
- S.clients.forEach(x=>{snap.clients[x.id]=j(rowClient(x));snap.priv[x.id]=j(rowPriv(x))});S.routines.forEach(x=>snap.routines[x.id]=j(rowRoutine(x)));S.sessions.forEach(x=>snap.sessions[x.id]=j(rowSess(x)));
+ S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done,ot:r.ot||'',price:spm[r.id]??null}));
+ snap={clients:{},priv:{},routines:{},sessions:{},spr:{},settings:j(S.settings)};
+ S.clients.forEach(x=>{snap.clients[x.id]=j(rowClient(x));snap.priv[x.id]=j(rowPriv(x))});S.routines.forEach(x=>snap.routines[x.id]=j(rowRoutine(x)));S.sessions.forEach(x=>snap.sessions[x.id]=j(rowSess(x)));S.sessions.filter(x=>x.price!=null).forEach(x=>snap.spr[x.id]=j({session_id:x.id,price:x.price}));
  if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
 }
 async function loadClient(){
@@ -302,7 +305,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261126-0830';
+const APPV='20261126-1430';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
