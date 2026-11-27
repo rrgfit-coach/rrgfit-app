@@ -153,7 +153,7 @@ return`<button class="btn ghost sm" onclick="go('#/rutinas')">← Rutinas</butto
 <button class="btn" onclick="saveR()">Guardar rutina</button> ${window._rn?'':`<button class="btn ghost" onclick="dupR()">Duplicar rutina</button> <button class="btn del" onclick="delR()">Borrar</button>`}`}
 function rerender(){$('#app').innerHTML=rutinaForm()}
 function delDay(k){const r=window._r;const n=r.items.filter(e=>(e.d||1)===k).length;if(!confirm(n?`¿Borrar el día ${k} con sus ${n} ejercicios? Los días de después se renumeran.`:`¿Borrar el día ${k}? Los días de después se renumeran.`))return;
- r.items.forEach(e=>{if((e.d||1)>k)e.d=(e.d||1)-1});r.items=r.items.filter(e=>(e.d||1)!==k);
+ r.items=r.items.filter(e=>(e.d||1)!==k);r.items.forEach(e=>{if((e.d||1)>k)e.d=(e.d||1)-1});
  if((window._rd||1)>k)window._rd--;else if((window._rd||1)===k)window._rd=Math.max(1,k-1);rerender()}
 const DEFOBJ='El objetivo principal es mejorar la fuerza y desarrollar la masa muscular, manteniendo un estilo de vida activo y saludable mediante un programa de entrenamiento personalizado, adaptado a su nivel y condición física actual.\nEl programa estará orientado a fortalecer de forma equilibrada todos los grupos musculares, mejorar la movilidad y la condición física general, priorizando una correcta ejecución de los ejercicios y una progresión gradual de las cargas para favorecer el bienestar físico y una mejora continua del rendimiento.';
 const OBS=['<u>Prioriza siempre la técnica antes que el peso.</u> Es preferible utilizar menos carga y realizar correctamente el ejercicio que levantar más peso con una técnica inadecuada.','Si aparece <u>dolor intenso, agudo o inusual</u> durante algún ejercicio, <u>detente inmediatamente</u>. No fuerces ningún movimiento que provoque molestias importantes.','Realiza los ejercicios de forma <u>controlada</u>, evitando movimientos bruscos y respetando los tiempos de descanso indicados.'];
@@ -312,7 +312,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261127-1405';
+const APPV='20261127-1407';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
