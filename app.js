@@ -54,6 +54,7 @@ async function loadTrainer(){
  S.sessions=d.data.map(r=>({id:r.id,clientId:r.client_id,dt:r.dt,service:rcat(r.service),done:r.done,ot:r.ot||'',price:spm[r.id]??null}));
  snap={clients:{},priv:{},routines:{},sessions:{},spr:{},settings:j(S.settings)};
  S.clients.forEach(x=>{snap.clients[x.id]=j(rowClient(x));snap.priv[x.id]=j(rowPriv(x))});S.routines.forEach(x=>snap.routines[x.id]=j(rowRoutine(x)));S.sessions.forEach(x=>snap.sessions[x.id]=j(rowSess(x)));S.sessions.filter(x=>x.price!=null).forEach(x=>snap.spr[x.id]=j({session_id:x.id,price:x.price}));
+ autoDone();
  if(!S.routines.length&&!S.clients.length){S.routines=SEED.map(([name,cat,items])=>({id:uid(),name,cat,items:items.map(n=>({n,s:3,r:'10',note:''}))}));save()}
 }
 async function loadClient(){
@@ -229,7 +230,10 @@ return`<button class="btn ghost sm" onclick="history.back()">‹ Volver</button>
 <div class="exan card"><img src="${IMG}${r[6]}" alt="${esc(r[1])}, posición inicial"><img class="b" src="${IMG}${r[7]}" alt="${esc(r[1])}, posición final"></div>
 <div class="card"><span class="tag red">${esc(r[3].join(', '))}</span><span class="tag">${esc(r[4])}</span><span class="tag">${esc(r[5])}</span></div>`}
 function addS(){const c=$('#a_c').value,d=$('#a_d').value;if(!c||!d)return toast('Falta cliente o fecha');const cc=cl(c);let ot='',price=null;if(cc&&cc.origin==='vivofacil'){ot=($('#a_ot').value||'').trim();if(ot&&!/^\d{1,20}$/.test(ot))return toast('La OT solo lleva números')}else{const pv=($('#a_pr')?$('#a_pr').value:'').trim().replace(',','.');if(pv){const n=+pv;if(!isFinite(n)||n<0||n>100000)return toast('Revisa el precio');price=Math.round(n*100)/100}}S.sessions.push({id:uid(),clientId:c,dt:d,service:$('#a_s').value,done:false,ot,price});if(CAL)CAL.sel=d.slice(0,10);save();toast('Sesión añadida');render()}
-function delS(id){S.sessions=S.sessions.filter(s=>s.id!==id);save();render()}
+function delS(id){const s=S.sessions.find(x=>x.id===id);if(s&&s.done){const c=cl(s.clientId);if(c&&c.bono&&c.bono.total&&c.bono.used>0)c.bono.used--}S.sessions=S.sessions.filter(x=>x.id!==id);save();render()}
+function autoDone(){const n=new Date(Date.now()-36e5);const cut=n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate())+'T'+pad(n.getHours())+':'+pad(n.getMinutes());let ch=0;
+ S.sessions.forEach(s=>{if(!s.done&&s.dt<cut){s.done=true;const c=cl(s.clientId);if(c){if(c.bono&&c.bono.total)c.bono.used++;c.lastContact=today();c.logs=c.logs||[];c.logs.unshift({d:today(),t:'Sesión de '+s.service})}ch++}});
+ if(ch){save();toast(ch===1?'1 sesión pasada marcada como hecha':ch+' sesiones pasadas marcadas como hechas')}}
 function accesoCard(c){
  if(c.user_id)return`<h3>Acceso a la app</h3><div class="card"><div>✅ Tiene acceso con <b>${esc(c.email||'su email')}</b></div><div class="mut">${c.consent_at?'Ha aceptado la política de privacidad el '+new Date(c.consent_at).toLocaleDateString('es-ES'):'Aún no ha aceptado la política de privacidad (la verá al entrar).'}</div><div class="mut">Si olvida la contraseña, puede pedir una nueva con "¿Olvidaste tu contraseña?" en la pantalla de entrada.</div><br>
 ${c.phone?`<a class="btn wa" onclick="contacted('${c.id}')" href="https://wa.me/${waNum(c.phone)}" target="_blank">WhatsApp</a> `:''}<button class="btn del" onclick="unlinkAccess('${c.id}')">Quitar acceso</button></div>`;
@@ -305,7 +309,7 @@ $('#app').innerHTML=v;if(keep===true)window.scrollTo(0,y);else window.scrollTo(0
 addEventListener('hashchange',()=>render());
 setInterval(refreshClient,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshClient()});
 boot();
-const APPV='20261126-1430';
+const APPV='20261127-1230';
 async function chkVer(){try{const t=await (await fetch('app.js',{cache:'no-store'})).text();const m=t.match(/const APPV='([^']+)'/);if(m&&m[1]!==APPV){if(sessionStorage.getItem('rv')!==m[1]){sessionStorage.setItem('rv',m[1]);location.reload()}}}catch(e){}}
 chkVer();document.addEventListener('visibilitychange',()=>{if(!document.hidden)chkVer()});
 if('serviceWorker'in navigator&&location.protocol.startsWith('http')){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(!document.hidden)r.update()})}).catch(()=>{});let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(rl)return;rl=true;location.reload()})}
